@@ -158,6 +158,9 @@ body[data-loc="us"] tr[data-geo="elsewhere"]{display:none;}
   background:var(--else-bg);border:1px solid var(--gold);border-radius:11px;font-size:13.5px;color:var(--ink);}
 .jdb-msg{font-weight:600;flex:1;min-width:200px;}
 .jdbanner code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1px 6px;}
+/* "caught up" state — nothing new to snapshot: quieter green, no action button */
+.jdbanner.ok{background:var(--bay-bg);border-color:var(--bay);}
+.jdbanner.ok .jdb-msg{font-weight:600;color:var(--muted);}
 #jdBannerCmd{max-width:220px;}
 /* ── Applied JDs tab ── */
 .jd-layout{display:grid;grid-template-columns:290px 1fr;gap:24px;margin-top:22px;align-items:start;}
@@ -191,11 +194,11 @@ body[data-loc="us"] tr[data-geo="elsewhere"]{display:none;}
   <header>
     <p class="eyebrow">career-ops · scan dashboard</p>
     <h1>Engineering leadership roles by scan date</h1>
-    <p class="sub">24 roles across 3 scan dates · rebuilt from data/scan-history.tsv · generated Aug 1, 2026, 6:07 PM</p>
+    <p class="sub">24 roles across 3 scan dates · rebuilt from data/scan-history.tsv · generated Aug 1, 2026, 8:02 PM</p>
   </header>
   <div id="jdBanner" class="jdbanner" hidden>
     <span id="jdBannerMsg" class="jdb-msg"></span>
-    <button id="jdBannerCopy" class="btn-sm" type="button">Copy command</button>
+    <button id="jdBannerCopy" class="btn-sm" type="button">Copy the snapshot-jd command</button>
     <input id="jdBannerCmd" class="scan-cmd" readonly hidden aria-label="snapshot-jd command (copy this)">
   </div>
   <div class="viewtabs" role="tablist">
@@ -1029,13 +1032,27 @@ body[data-loc="us"] tr[data-geo="elsewhere"]{display:none;}
   var jdBannerCopy=document.getElementById('jdBannerCopy');
   var jdBannerCmd=document.getElementById('jdBannerCmd');
   var jdUrlSet={}; jdData.forEach(function(j){ if(j.url) jdUrlSet[normUrl(j.url)]=1; });
+  // Three clear states, so the banner always communicates what (if anything) to do:
+  //   • pending>0  → amber reminder: N newly-Applied roles still need their JD saved → run snapshot-jd
+  //   • pending=0 but some roles ARE Applied → quiet green "all caught up, nothing to run" (no button)
+  //   • no Applied roles at all → hidden (nothing to say)
   function updateBanner(){
     if(!jdBanner) return;
-    var n=0;
-    Object.keys(store).forEach(function(k){ if(store[k]==='applied' && !jdUrlSet[k]) n++; });
-    if(n>0){ jdBannerMsg.innerHTML='⚑ '+n+' applied role'+(n===1?'':'s')+' with no JD yet — run ';
+    var n=0, a=0;   // n = Applied WITHOUT an archived JD (pending); a = total Applied
+    Object.keys(store).forEach(function(k){ if(store[k]==='applied'){ a++; if(!jdUrlSet[k]) n++; } });
+    if(n>0){
+      jdBanner.hidden=false; jdBanner.classList.remove('ok');
+      jdBannerMsg.innerHTML='⚑ '+n+' new role'+(n===1?'':'s')+' marked Applied — save '+(n===1?'its':'their')+' job description'+(n===1?'':'s')+' before the posting'+(n===1?'':'s')+' expire'+(n===1?'s':'')+'. Run ';
       var code=document.createElement('code'); code.textContent='snapshot-jd'; jdBannerMsg.appendChild(code);
-      jdBanner.hidden=false; } else jdBanner.hidden=true;
+      if(jdBannerCopy) jdBannerCopy.hidden=false;
+    } else if(a>0){
+      jdBanner.hidden=false; jdBanner.classList.add('ok');
+      jdBannerMsg.textContent='✓ No new applied roles to snapshot — all '+a+' applied role'+(a===1?'has':'s have')+' their job description saved.';
+      if(jdBannerCopy) jdBannerCopy.hidden=true;
+      if(jdBannerCmd) jdBannerCmd.hidden=true;
+    } else {
+      jdBanner.hidden=true;
+    }
   }
   if(jdBannerCopy) jdBannerCopy.addEventListener('click',function(){
     var cmd='snapshot-jd';
