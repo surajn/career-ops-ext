@@ -97,13 +97,14 @@ footer a{color:var(--accent);text-decoration:none;font-weight:600;}
 
   <section>
     <h2><span class="n">01</span>The thesis</h2>
-    <p>Anyone can prompt an AI to generate a dashboard. The question a hiring panel is really asking in 2026 is: <strong>when the model writes the code, what do <em>you</em> add?</strong> My answer is the judgment that turns a generated script into a system you can trust and keep running — expressed as three things at once:</p>
+    <p>I didn't build this to show off — I built it because I needed it. Hunting for a Director/EM role was eating hours of my week, so I turned the search into a system. Anyone can prompt an AI to generate a dashboard; what's worth showing is <strong>the judgment layered on top</strong> — deciding what to build, which of the AI's defaults to override, and the bar to hold it to. Three things at once:</p>
     <ul>
       <li><strong>Builder &amp; impact</strong> — I decided <em>what</em> to build, and it runs daily against my real pipeline.</li>
       <li><strong>Direction &amp; judgment</strong> — I repeatedly <em>overrode</em> the AI's easy-but-wrong default.</li>
       <li><strong>Engineering rigor</strong> — I held it to a production bar: upgrade-safety, shipping gates, root-cause fixes, least-privilege.</li>
     </ul>
     <div class="metrics">
+      <div class="metric"><div class="num">minutes</div><div class="lab">daily role triage — down from 3–4 hrs</div></div>
       <div class="metric"><div class="num">127</div><div class="lab">companies tracked</div></div>
       <div class="metric"><div class="num">488</div><div class="lab">roles across 17 scan dates</div></div>
       <div class="metric"><div class="num">31,450</div><div class="lab">jobs in one scan — at $0 model cost</div></div>
@@ -151,6 +152,8 @@ footer a{color:var(--accent);text-decoration:none;font-weight:600;}
   <section>
     <h2><span class="n">03</span>Impact</h2>
     <ul class="impact">
+      <li><strong>Cut my daily role hunt from 3–4 hours to a few minutes</strong> — one browsable view replaces trawling a dozen job boards by hand.</li>
+      <li><strong>No more spreadsheet bookkeeping</strong> — the dashboard flags what's new since the last scan (grouped by date) and remembers which roles I've already reviewed and their status, so I never re-read a posting or lose track of what changed.</li>
       <li><strong>Recall that a substring filter would drop</strong> — the broadened matcher surfaces multi-word AI-leadership disciplines like <em>“Director, AI Transformation,” “Head of AI Enablement,”</em> and <em>“Director, Engineering — Agentic Product”</em> that the stock filter silently skipped.</li>
       <li><strong>A daily-driver operational cockpit</strong> — 127 companies and 488 roles across 17 scan dates in one offline, zero-dependency page: browse by scan date or company, track per-role status, and read archived job descriptions — all local.</li>
       <li><strong>A reusable, fork-free pattern</strong> for extending an open-source tool that keeps taking upstream updates — the transferable lesson, and the part I'd defend hardest in a review.</li>
