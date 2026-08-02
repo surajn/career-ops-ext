@@ -1,9 +1,12 @@
 # career-ops extensions — a case study in AI-assisted engineering
 
-Extending the open-source [**career-ops**](https://github.com/santifer/career-ops)
-multi-agent job-search system with the features my own Engineering-Director / EM
-search needed — an operational dashboard, better scanner coverage, and a
-least-privilege email design — **without forking it or breaking its upgrade path**.
+I directed an AI coding agent (Claude Code) to turn my own Engineering-Director / EM
+job search into a **running, instrumented system** on top of the open-source
+[**career-ops**](https://github.com/santifer/career-ops) multi-agent job-search tool —
+**without forking it or breaking its upgrade path**. The interesting part isn't what the
+AI generated; it's the **five judgment calls** where I overrode the easy, wrong default to
+keep it production-grade: upgrade-safe, honest (never fabricates a job description),
+least-privilege, and zero-token.
 
 **▶ [Live demo](https://surajn.github.io/career-ops-ext/demo.html)**
 · **[Case study](https://surajn.github.io/career-ops-ext/)**
@@ -18,21 +21,25 @@ least-privilege email design — **without forking it or breaking its upgrade pa
 ## What's here
 | Path | What it is |
 |------|------------|
-| `index.html` | The case study (what / why / how / impact). |
-| `demo.html` | Live, offline dashboard on a **sanitized ~24-role public sample**. |
-| `output/dashboard/gen.mjs` | The real dashboard generator — a zero-dependency Node script that renders a scan-history TSV into a self-contained HTML page. |
+| `index.html` | The case study — the thesis + the five judgment calls (what / why / how / impact). |
+| `demo.html` | Live, offline dashboard on a **sanitized public sample** — four tabs (*By scan date*, *By company*, *Recent scanc*, *Applied JDs*), status tracking, and the pending-JD banner. Public postings + synthetic statuses only. |
+| `output/dashboard/gen.mjs` | The real dashboard generator — a zero-dependency Node script that renders the scan/scanc TSVs + archived JDs into one self-contained, offline HTML page (with a self-check gate that refuses to ship broken JS). |
 | `plugins/outlook-applied/` | The read-only Microsoft Graph email-check plugin (design + code; dormant). |
-| `data/scan-history.tsv` | The sanitized sample dataset (public postings only, no personal status). |
+| `data/scan-history.tsv`, `data/scanc-history.tsv` | The sanitized sample datasets (public postings only). |
+| `jds/` | A few **sample** archived job descriptions to demo the Applied-JDs tab (generic illustrative text, not real postings). |
 
 ## The engineering, in one paragraph
-Every extension lives in **career-ops's user-extension layer** — gitignored paths that
-the project's own updater (`update-system.mjs`) is contractually forbidden to touch (its
-`USER_PATHS` guard aborts if an update would modify them). The dashboard generator has
-**zero imports from system code**, so upstream changes can't break it. That's the whole
-point: I could keep pulling upstream updates while my work rode safely alongside. The
-same discipline shows up in the least-privilege email design (read-only scope, egress
-allow-listed, no password stored) and in a root-cause approach to filter bugs (I traced
-*why* real roles were silently dropped before choosing the upgrade-safe fix).
+Every extension lives in **career-ops's user-extension layer** — gitignored paths the
+project's own updater (`update-system.mjs`) is contractually forbidden to touch (its
+`USER_PATHS` guard aborts if an update would modify them) — with **zero imports from system
+code**, so upstream changes can't break it, and it rode auto-updates `v1.19 → v1.22`
+untouched. The same discipline shows up everywhere: a **JD archiver that never fabricates**
+(a dead posting yields an honest stub, not invented text); a **serverless-but-stateful**
+dashboard that persists to disk from a static `file://` page via the File System Access
+API; **zero-token** discovery (structured ATS APIs, not model calls); a **least-privilege**
+email design (read-only scope, egress allow-listed, no password stored); and a **root-cause**
+approach to a silent recall bug (I traced *why* real roles were dropped before choosing the
+upgrade-safe fix).
 
 ## Run the demo locally
 ```bash

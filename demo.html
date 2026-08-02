@@ -4,8 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>career-ops · scan dashboard</title>
-<meta name="robots" content="noindex, nofollow">
-<meta name="referrer" content="no-referrer">
 <style>
 :root{
   --ground:#f5f6f8;--surface:#fff;--surface-2:#fafbfc;--ink:#1a1e27;--muted:#5c6473;
@@ -85,6 +83,7 @@ td{padding:10px 15px;vertical-align:top;}
 .st-interviewing{color:var(--remote);border-color:var(--remote);background:var(--remote-bg);}
 .st-offer{color:var(--gold);border-color:var(--gold);background:var(--else-bg);}
 .st-notfit,.st-notinterested{color:var(--faint);background:var(--surface-2);}
+.st-notfound{color:var(--else);border-color:var(--else);background:var(--else-bg);border-style:dashed;}
 .st-rejected{color:var(--danger);border-color:var(--danger);background:var(--danger-bg);}
 .hidden{display:none;}
 .day-empty{color:var(--muted);padding:18px 2px;}
@@ -94,18 +93,127 @@ tr[hidden]{display:none;}
   .layout{grid-template-columns:1fr;}
   .rail{display:none;}
   .mobile-nav{display:block;}
-  #dsel{width:100%;font-family:inherit;font-size:14px;padding:9px 12px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--ink);}
+  #dsel,#rdsel{width:100%;font-family:inherit;font-size:14px;padding:9px 12px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--ink);}
+  .co-layout{grid-template-columns:1fr;}
+  .co-rail{position:static;max-height:none;}
 }
+/* ── View tabs (By scan date | By company) ── */
+.viewtabs{display:flex;gap:4px;margin:18px 0 4px;border-bottom:1px solid var(--border);}
+.vtab{font-family:inherit;font-size:14px;font-weight:600;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;padding:9px 14px;cursor:pointer;margin-bottom:-1px;}
+.vtab:hover{color:var(--ink);}
+.vtab.active{color:var(--accent);border-bottom-color:var(--accent);}
+/* Global Location view control */
+.locbar{display:flex;align-items:center;gap:8px;margin:12px 0 2px;font-size:13px;}
+.locbar label{font-weight:600;color:var(--muted);}
+#locSel{font-family:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 9px;cursor:pointer;}
+#locSel:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-weak);}
+.loc-hint{font-size:12px;color:var(--faint);}
+/* Location tiers: hide wider-geo rows when a narrower tier is selected (view-only). */
+body[data-loc="bayremote"] tr[data-geo="us"],
+body[data-loc="bayremote"] tr[data-geo="elsewhere"]{display:none;}
+body[data-loc="us"] tr[data-geo="elsewhere"]{display:none;}
+/* ── By-company view ── */
+.co-layout{display:grid;grid-template-columns:236px 1fr;gap:24px;margin-top:22px;align-items:start;}
+.co-rail{position:sticky;top:16px;display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 40px);}
+#coq{font-family:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 13px;outline:none;}
+#coq:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-weak);}
+.co-list{display:flex;flex-direction:column;gap:5px;overflow-y:auto;padding-right:2px;}
+/* scan bar (multi-select → copy /scanc command) */
+.scanbar{display:flex;flex-direction:column;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:11px 12px;box-shadow:var(--shadow);}
+.scanbar-top{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;}
+.scanbar-top strong{font-size:13px;}
+#selCount{font-size:12px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums;}
+.scanbar-row{display:flex;gap:6px;}
+.btn-sm{font-family:inherit;font-size:12px;font-weight:600;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 9px;cursor:pointer;}
+.btn-sm:hover{border-color:var(--accent);color:var(--accent);}
+#scanDays{margin-left:auto;}
+#scanAdd{font-family:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 10px;outline:none;}
+#scanAdd:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-weak);}
+#copyScan{width:100%;justify-content:center;}
+.scan-cmd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--ink);background:var(--surface-2);border:1px solid var(--accent);border-radius:8px;padding:7px 9px;width:100%;}
+.scan-note{font-size:11.5px;color:var(--faint);margin:0;line-height:1.45;}
+.linklike{background:none;border:none;color:var(--accent);font:inherit;font-size:11.5px;font-weight:600;padding:0;cursor:pointer;text-decoration:underline;}
+.co-row{display:flex;align-items:center;gap:8px;}
+.co-chk{flex:none;width:15px;height:15px;cursor:pointer;accent-color:var(--accent);}
+.co-row .co-item{flex:1;min-width:0;}
+.co-row.chk .co-item{border-color:var(--accent);background:var(--accent-weak);}
+.co-item{text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 13px;cursor:pointer;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:inherit;transition:border-color .12s,background .12s;}
+.co-item:hover{border-color:var(--accent);}
+.co-item.active{border-color:var(--accent);background:var(--accent-weak);box-shadow:var(--shadow);}
+.co-nm{font-weight:600;font-size:14px;}
+.co-ct{font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-weak);border-radius:20px;padding:1px 9px;font-variant-numeric:tabular-nums;}
+.c-date{white-space:nowrap;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;}
+.chip-exp{color:var(--danger);}
+.row-exp{opacity:.55;}
+.exp-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--danger);background:var(--danger-bg);padding:1px 6px;border-radius:5px;margin-left:8px;vertical-align:1px;}
+.src-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:lowercase;color:var(--remote);background:var(--remote-bg);padding:1px 6px;border-radius:5px;margin-left:8px;vertical-align:1px;}
+.co-empty{color:var(--muted);padding:18px 2px;}
+/* Recent scanc tab */
+.chip-scand{color:var(--accent);background:var(--accent-weak);border-color:transparent;}
+.rc{margin-bottom:26px;}
+.rc-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+#rcCmd{max-width:100%;}
+/* ── Global pending-JDs banner (shows on EVERY tab; auto-hides at 0) ── */
+.jdbanner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0 2px;padding:10px 14px;
+  background:var(--else-bg);border:1px solid var(--gold);border-radius:11px;font-size:13.5px;color:var(--ink);}
+.jdb-msg{font-weight:600;flex:1;min-width:200px;}
+.jdbanner code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1px 6px;}
+#jdBannerCmd{max-width:220px;}
+/* ── Applied JDs tab ── */
+.jd-layout{display:grid;grid-template-columns:290px 1fr;gap:24px;margin-top:22px;align-items:start;}
+.jd-rail{position:sticky;top:16px;display:flex;flex-direction:column;gap:9px;max-height:calc(100vh - 40px);}
+#jdq{font-family:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 13px;outline:none;}
+#jdq:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-weak);}
+.jd-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;padding-right:2px;}
+.jd-item{text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 12px;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;gap:2px;font-family:inherit;transition:border-color .12s,background .12s;}
+.jd-item:hover{border-color:var(--accent);}
+.jd-item.active{border-color:var(--accent);background:var(--accent-weak);box-shadow:var(--shadow);}
+.jd-co{font-weight:700;font-size:13px;}
+.jd-role{font-size:13px;color:var(--muted);line-height:1.35;}
+.jd-meta{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums;margin-top:1px;}
+.jd-badge{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:5px;padding:1px 6px;}
+.jd-live{color:var(--bay);background:var(--bay-bg);}
+.jd-off{color:var(--danger);background:var(--danger-bg);}
+.jd-reader{min-width:0;}
+.jd-doc{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:22px 24px;}
+.jd-head{border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:16px;}
+.jd-head h2{font-size:20px;margin:0 0 4px;letter-spacing:-.01em;}
+.jd-sub{color:var(--muted);margin:0 0 6px;font-size:13px;}
+.jd-link{display:inline-block;margin-right:14px;font-size:12.5px;color:var(--accent);text-decoration:none;word-break:break-all;}
+.jd-link:hover{text-decoration:underline;}
+.jd-body{white-space:pre-wrap;word-wrap:break-word;font-size:14px;line-height:1.62;color:var(--ink);}
+@media(max-width:760px){.jd-layout{grid-template-columns:1fr;}.jd-rail{position:static;max-height:none;}}
 </style>
 </head>
 <body>
-<div style="max-width:1180px;margin:0 auto;padding:14px 22px 0"><div style="background:#fff5d6;border:1px solid #e6cf7a;border-left:4px solid #c99a1e;border-radius:10px;padding:12px 16px;color:#6b530f;font:600 13px/1.5 ui-sans-serif,system-ui,sans-serif"><strong>Demo — sample data.</strong> ~24 real public postings, no personal status. A live copy of the dashboard I built on top of the open-source <a href="https://github.com/santifer/career-ops" style="color:#7a5c00">career-ops</a> project. Set a status, filter, sort, switch dates — all local, offline. <a href="index.html" style="color:#7a5c00">← back to the case study</a></div></div>
+<div style="max-width:1180px;margin:0 auto;padding:14px 22px 0"><div style="background:#fff5d6;border:1px solid #e6cf7a;border-left:4px solid #c99a1e;border-radius:10px;padding:12px 16px;color:#6b530f;font:600 13px/1.5 ui-sans-serif,system-ui,sans-serif"><strong>Demo — sample data.</strong> Public postings + synthetic statuses only, no personal data. A live copy of the dashboard I built on top of the open-source <a href="https://github.com/santifer/career-ops" style="color:#7a5c00">career-ops</a> project. Try the tabs — <em>By scan date</em>, <em>By company</em>, <em>Recent scanc</em>, and <em>Applied JDs</em> — set a status, search, filter, read an archived JD; all local, offline. <a href="index.html" style="color:#7a5c00">← back to the case study</a></div></div>
 <div class="wrap">
   <header>
     <p class="eyebrow">career-ops · scan dashboard</p>
     <h1>Engineering leadership roles by scan date</h1>
-    <p class="sub">24 roles across 3 scan dates · rebuilt from data/scan-history.tsv · generated Jul 22, 2026, 6:39 PM</p>
+    <p class="sub">24 roles across 3 scan dates · rebuilt from data/scan-history.tsv · generated Aug 1, 2026, 6:07 PM</p>
   </header>
+  <div id="jdBanner" class="jdbanner" hidden>
+    <span id="jdBannerMsg" class="jdb-msg"></span>
+    <button id="jdBannerCopy" class="btn-sm" type="button">Copy command</button>
+    <input id="jdBannerCmd" class="scan-cmd" readonly hidden aria-label="snapshot-jd command (copy this)">
+  </div>
+  <div class="viewtabs" role="tablist">
+    <button class="vtab active" data-view="date" role="tab">By scan date</button>
+    <button class="vtab" data-view="company" role="tab">By company</button>
+    <button class="vtab" data-view="recent" role="tab">Recent scanc</button>
+    <button class="vtab" data-view="jds" role="tab">Applied JDs</button>
+  </div>
+  <div class="locbar">
+    <label for="locSel">Location:</label>
+    <select id="locSel" aria-label="Location filter">
+      <option value="bayremote">Bay Area + Remote</option>
+      <option value="us">United States</option>
+      <option value="all">All locations</option>
+    </select>
+    <span class="loc-hint">view-only — hides out-of-region rows in every tab (no data changed)</span>
+  </div>
+  <div id="view-date">
   <div class="mobile-nav"><select id="dsel" aria-label="Select scan date"><option value="2026-07-22" selected>Jul 22, 2026 — 10 roles</option><option value="2026-07-21">Jul 21, 2026 — 6 roles</option><option value="2026-07-20">Jul 20, 2026 — 8 roles</option></select></div>
   <div class="layout">
     <nav class="rail" aria-label="Scan dates">
@@ -115,20 +223,21 @@ tr[hidden]{display:none;}
     <main>
       <div class="toolbar">
         <input id="q" type="search" placeholder="Filter this date by company, role, or location…" autocomplete="off" aria-label="Filter roles">
-        <select id="stfilter" aria-label="Filter by status"><option value="">All statuses</option><option value="__set">Any status set</option><option value="__none">No status</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select>
+        <select id="stfilter" aria-label="Filter by status"><option value="">All statuses</option><option value="__set">Any status set</option><option value="__none">No status</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select>
         <select id="sortsel" aria-label="Sort roles"><option value="status" selected>Sort: Status first</option><option value="company">Sort: Company</option></select>
+        <button id="linkBtn" class="btn" type="button" hidden title="Auto-save (Chrome/Edge): bind this dashboard to data/role-status.json so every status change writes straight to disk — no manual Export. That on-disk file is what the retry-notfound / post-scan re-check reads.">Link file — auto-save</button>
         <button id="exportBtn" class="btn" type="button" title="Download role-status.json — save it as data/role-status.json for a durable, backed-up copy">Export statuses</button>
         <label class="btn" for="importFile">Import<input id="importFile" type="file" accept="application/json" hidden></label>
       </div>
-      <p class="savednote">Statuses save in this browser automatically and survive scans. <strong>Export</strong> → save as <code>data/role-status.json</code> to keep a durable, file-level copy.</p>
+      <p class="savednote">Statuses save in this browser automatically and survive scans. <strong>Export</strong> → save as <code>data/role-status.json</code> for a durable copy, or <strong>Link file</strong> (Chrome/Edge) to auto-write that file on every change. <span id="linkState"></span></p>
       <section class="day" data-date="2026-07-22">
     <div class="day-head"><h2>Jul 22, 2026</h2>
       <div class="chips"><span class="chip">10 roles</span>
       <span class="chip chip-dir">5 Director+</span>
       <span class="chip chip-bay">10 Bay Area</span>
       <span class="chip chip-st" hidden></span></div></div>
-    <div class="tier tier-dir"><div class="tier-head"><h3>Director &amp; above</h3><span class="tier-count">5</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="harvey director of engineering, core product san francisco" data-status="" data-i="0"><td class="c-co">Harvey</td><td class="c-role"><a href="https://jobs.ashbyhq.com/harvey/f42d9022-87e7-4620-8470-00f37f6757c4" target="_blank" rel="noopener">Director of Engineering, Core Product<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/harvey/f42d9022-87e7-4620-8470-00f37f6757c4" aria-label="Set status for Director of Engineering, Core Product"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="rippling director of engineering - infrastructure san francisco, ca" data-status="" data-i="1"><td class="c-co">Rippling</td><td class="c-role"><a href="https://ats.rippling.com/rippling/jobs/2f2ae4c8-ec56-4d1f-8f2a-0d295674e19c" target="_blank" rel="noopener">Director of Engineering - Infrastructure<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA</span></td><td class="c-st"><select class="stsel" data-url="https://ats.rippling.com/rippling/jobs/2f2ae4c8-ec56-4d1f-8f2a-0d295674e19c" aria-label="Set status for Director of Engineering - Infrastructure"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="salesforce director - software engineering california - san francisco" data-status="" data-i="2"><td class="c-co">Salesforce</td><td class="c-role"><a href="https://salesforce.wd12.myworkdayjobs.com/External_Career_Site/job/California---San-Francisco/Director---Software-Engineering_JR350368" target="_blank" rel="noopener">Director - Software Engineering<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">California - San Francisco</span></td><td class="c-st"><select class="stsel" data-url="https://salesforce.wd12.myworkdayjobs.com/External_Career_Site/job/California---San-Francisco/Director---Software-Engineering_JR350368" aria-label="Set status for Director - Software Engineering"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="snowflake director of engineering, ai functions us-ca-menlo park" data-status="" data-i="3"><td class="c-co">Snowflake</td><td class="c-role"><a href="https://jobs.ashbyhq.com/snowflake/4674b19c-2a2f-4315-8229-b23a2c1336b4" target="_blank" rel="noopener">Director of Engineering, AI Functions<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">US-CA-Menlo Park</span></td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/snowflake/4674b19c-2a2f-4315-8229-b23a2c1336b4" aria-label="Set status for Director of Engineering, AI Functions"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="zscaler director, software engineering - common platform services san jose, california, usa" data-status="" data-i="4"><td class="c-co">Zscaler</td><td class="c-role"><a href="https://job-boards.greenhouse.io/zscaler/jobs/5166806007" target="_blank" rel="noopener">Director, Software Engineering - Common Platform Services<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Jose, California, USA</span></td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/zscaler/jobs/5166806007" aria-label="Set status for Director, Software Engineering - Common Platform Services"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
-    <div class="tier tier-mgr"><div class="tier-head"><h3>Senior Manager &amp; below</h3><span class="tier-count">5</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="anysphere (cursor) engineering manager, ml san francisco" data-status="" data-i="0"><td class="c-co">Anysphere (Cursor)</td><td class="c-role"><a href="https://jobs.ashbyhq.com/cursor" target="_blank" rel="noopener">Engineering Manager, ML<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/cursor" aria-label="Set status for Engineering Manager, ML"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="baseten engineering manager, model library san francisco" data-status="" data-i="1"><td class="c-co">Baseten</td><td class="c-role"><a href="https://jobs.ashbyhq.com/baseten" target="_blank" rel="noopener">Engineering Manager, Model Library<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/baseten" aria-label="Set status for Engineering Manager, Model Library"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="notion engineering manager, context (agentic search) san francisco, california" data-status="" data-i="2"><td class="c-co">Notion</td><td class="c-role"><a href="https://jobs.ashbyhq.com/notion" target="_blank" rel="noopener">Engineering Manager, Context (Agentic Search)<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, California</span></td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/notion" aria-label="Set status for Engineering Manager, Context (Agentic Search)"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="plaid engineering manager, ai applications san francisco" data-status="" data-i="3"><td class="c-co">Plaid</td><td class="c-role"><a href="https://jobs.ashbyhq.com/plaid" target="_blank" rel="noopener">Engineering Manager, AI Applications<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/plaid" aria-label="Set status for Engineering Manager, AI Applications"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="scale ai engineering manager, agent oversight san francisco, ca; new york, ny" data-status="" data-i="4"><td class="c-co">Scale AI</td><td class="c-role"><a href="https://job-boards.greenhouse.io/scaleai" target="_blank" rel="noopener">Engineering Manager, Agent Oversight<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA; New York, NY</span></td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/scaleai" aria-label="Set status for Engineering Manager, Agent Oversight"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
+    <div class="tier tier-dir"><div class="tier-head"><h3>Director &amp; above</h3><span class="tier-count">5</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="harvey director of engineering, core product san francisco" data-status="" data-i="0" data-geo="bay" data-listed=""><td class="c-co">Harvey</td><td class="c-role"><a href="https://jobs.ashbyhq.com/harvey/f42d9022-87e7-4620-8470-00f37f6757c4" target="_blank" rel="noopener">Director of Engineering, Core Product<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/harvey/f42d9022-87e7-4620-8470-00f37f6757c4" aria-label="Set status for Director of Engineering, Core Product"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="rippling director of engineering - infrastructure san francisco, ca" data-status="" data-i="1" data-geo="bay" data-listed=""><td class="c-co">Rippling</td><td class="c-role"><a href="https://ats.rippling.com/rippling/jobs/2f2ae4c8-ec56-4d1f-8f2a-0d295674e19c" target="_blank" rel="noopener">Director of Engineering - Infrastructure<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://ats.rippling.com/rippling/jobs/2f2ae4c8-ec56-4d1f-8f2a-0d295674e19c" aria-label="Set status for Director of Engineering - Infrastructure"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="salesforce director - software engineering california - san francisco" data-status="" data-i="2" data-geo="bay" data-listed=""><td class="c-co">Salesforce</td><td class="c-role"><a href="https://salesforce.wd12.myworkdayjobs.com/External_Career_Site/job/California---San-Francisco/Director---Software-Engineering_JR350368" target="_blank" rel="noopener">Director - Software Engineering<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">California - San Francisco</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://salesforce.wd12.myworkdayjobs.com/External_Career_Site/job/California---San-Francisco/Director---Software-Engineering_JR350368" aria-label="Set status for Director - Software Engineering"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="snowflake director of engineering, ai functions us-ca-menlo park" data-status="" data-i="3" data-geo="bay" data-listed=""><td class="c-co">Snowflake</td><td class="c-role"><a href="https://jobs.ashbyhq.com/snowflake/4674b19c-2a2f-4315-8229-b23a2c1336b4" target="_blank" rel="noopener">Director of Engineering, AI Functions<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">US-CA-Menlo Park</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/snowflake/4674b19c-2a2f-4315-8229-b23a2c1336b4" aria-label="Set status for Director of Engineering, AI Functions"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="zscaler director, software engineering - common platform services san jose, california, usa" data-status="" data-i="4" data-geo="bay" data-listed=""><td class="c-co">Zscaler</td><td class="c-role"><a href="https://job-boards.greenhouse.io/zscaler/jobs/5166806007" target="_blank" rel="noopener">Director, Software Engineering - Common Platform Services<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Jose, California, USA</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/zscaler/jobs/5166806007" aria-label="Set status for Director, Software Engineering - Common Platform Services"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
+    <div class="tier tier-mgr"><div class="tier-head"><h3>Senior Manager &amp; below</h3><span class="tier-count">5</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="anysphere (cursor) engineering manager, ml san francisco" data-status="" data-i="0" data-geo="bay" data-listed=""><td class="c-co">Anysphere (Cursor)</td><td class="c-role"><a href="https://jobs.ashbyhq.com/cursor" target="_blank" rel="noopener">Engineering Manager, ML<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/cursor" aria-label="Set status for Engineering Manager, ML"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="baseten engineering manager, model library san francisco" data-status="" data-i="1" data-geo="bay" data-listed=""><td class="c-co">Baseten</td><td class="c-role"><a href="https://jobs.ashbyhq.com/baseten" target="_blank" rel="noopener">Engineering Manager, Model Library<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/baseten" aria-label="Set status for Engineering Manager, Model Library"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="notion engineering manager, context (agentic search) san francisco, california" data-status="" data-i="2" data-geo="bay" data-listed=""><td class="c-co">Notion</td><td class="c-role"><a href="https://jobs.ashbyhq.com/notion" target="_blank" rel="noopener">Engineering Manager, Context (Agentic Search)<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, California</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/notion" aria-label="Set status for Engineering Manager, Context (Agentic Search)"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="plaid engineering manager, ai applications san francisco" data-status="" data-i="3" data-geo="bay" data-listed=""><td class="c-co">Plaid</td><td class="c-role"><a href="https://jobs.ashbyhq.com/plaid" target="_blank" rel="noopener">Engineering Manager, AI Applications<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/plaid" aria-label="Set status for Engineering Manager, AI Applications"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="scale ai engineering manager, agent oversight san francisco, ca; new york, ny" data-status="" data-i="4" data-geo="bay" data-listed=""><td class="c-co">Scale AI</td><td class="c-role"><a href="https://job-boards.greenhouse.io/scaleai" target="_blank" rel="noopener">Engineering Manager, Agent Oversight<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA; New York, NY</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/scaleai" aria-label="Set status for Engineering Manager, Agent Oversight"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
     <p class="day-empty" hidden>No roles match on this date.</p>
   </section>
 <section class="day hidden" data-date="2026-07-21">
@@ -137,8 +246,8 @@ tr[hidden]{display:none;}
       <span class="chip chip-dir">3 Director+</span>
       <span class="chip chip-bay">5 Bay Area</span>
       <span class="chip chip-st" hidden></span></div></div>
-    <div class="tier tier-dir"><div class="tier-head"><h3>Director &amp; above</h3><span class="tier-count">3</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="doordash director of engineering, logistics san francisco, ca; sunnyvale, ca" data-status="" data-i="0"><td class="c-co">DoorDash</td><td class="c-role"><a href="https://job-boards.greenhouse.io/doordashusa/jobs/7891795" target="_blank" rel="noopener">Director of Engineering, Logistics<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA; Sunnyvale, CA</span></td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/doordashusa/jobs/7891795" aria-label="Set status for Director of Engineering, Logistics"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="okta director, engineering - okta integration network san francisco, california" data-status="" data-i="1"><td class="c-co">Okta</td><td class="c-role"><a href="https://job-boards.greenhouse.io/okta/jobs/6511111" target="_blank" rel="noopener">Director, Engineering - Okta Integration Network<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, California</span></td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/okta/jobs/6511111" aria-label="Set status for Director, Engineering - Okta Integration Network"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="roblox director of engineering, economy ml san mateo, ca, united states" data-status="" data-i="2"><td class="c-co">Roblox</td><td class="c-role"><a href="https://careers.roblox.com/jobs/7963129" target="_blank" rel="noopener">Director of Engineering, Economy ML<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Mateo, CA, United States</span></td><td class="c-st"><select class="stsel" data-url="https://careers.roblox.com/jobs/7963129" aria-label="Set status for Director of Engineering, Economy ML"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
-    <div class="tier tier-mgr"><div class="tier-head"><h3>Senior Manager &amp; below</h3><span class="tier-count">3</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="airbnb engineering manager, payments usa - remote" data-status="" data-i="0"><td class="c-co">Airbnb</td><td class="c-role"><a href="https://careers.airbnb.com/positions/8044558" target="_blank" rel="noopener">Engineering Manager, Payments<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-remote">Remote</span><span class="loc-txt">USA - Remote</span></td><td class="c-st"><select class="stsel" data-url="https://careers.airbnb.com/positions/8044558" aria-label="Set status for Engineering Manager, Payments"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="chime senior engineering manager, data san francisco, ca, usa" data-status="" data-i="1"><td class="c-co">Chime</td><td class="c-role"><a href="https://job-boards.greenhouse.io/chime/jobs/6534222" target="_blank" rel="noopener">Senior Engineering Manager, Data<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA, USA</span></td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/chime/jobs/6534222" aria-label="Set status for Senior Engineering Manager, Data"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="databricks engineering manager, foundation model inference (fmapi) mountain view, california" data-status="" data-i="2"><td class="c-co">Databricks</td><td class="c-role"><a href="https://job-boards.greenhouse.io/databricks/jobs/8472398002" target="_blank" rel="noopener">Engineering Manager, Foundation Model Inference (FMAPI)<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">Mountain View, California</span></td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/databricks/jobs/8472398002" aria-label="Set status for Engineering Manager, Foundation Model Inference (FMAPI)"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
+    <div class="tier tier-dir"><div class="tier-head"><h3>Director &amp; above</h3><span class="tier-count">3</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="doordash director of engineering, logistics san francisco, ca; sunnyvale, ca" data-status="" data-i="0" data-geo="bay" data-listed=""><td class="c-co">DoorDash</td><td class="c-role"><a href="https://job-boards.greenhouse.io/doordashusa/jobs/7891795" target="_blank" rel="noopener">Director of Engineering, Logistics<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA; Sunnyvale, CA</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/doordashusa/jobs/7891795" aria-label="Set status for Director of Engineering, Logistics"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="okta director, engineering - okta integration network san francisco, california" data-status="" data-i="1" data-geo="bay" data-listed=""><td class="c-co">Okta</td><td class="c-role"><a href="https://job-boards.greenhouse.io/okta/jobs/6511111" target="_blank" rel="noopener">Director, Engineering - Okta Integration Network<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, California</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/okta/jobs/6511111" aria-label="Set status for Director, Engineering - Okta Integration Network"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="roblox director of engineering, economy ml san mateo, ca, united states" data-status="" data-i="2" data-geo="bay" data-listed=""><td class="c-co">Roblox</td><td class="c-role"><a href="https://careers.roblox.com/jobs/7963129" target="_blank" rel="noopener">Director of Engineering, Economy ML<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Mateo, CA, United States</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://careers.roblox.com/jobs/7963129" aria-label="Set status for Director of Engineering, Economy ML"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
+    <div class="tier tier-mgr"><div class="tier-head"><h3>Senior Manager &amp; below</h3><span class="tier-count">3</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="airbnb engineering manager, payments usa - remote" data-status="" data-i="0" data-geo="remote" data-listed=""><td class="c-co">Airbnb</td><td class="c-role"><a href="https://careers.airbnb.com/positions/8044558" target="_blank" rel="noopener">Engineering Manager, Payments<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-remote">Remote</span><span class="loc-txt">USA - Remote</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://careers.airbnb.com/positions/8044558" aria-label="Set status for Engineering Manager, Payments"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="chime senior engineering manager, data san francisco, ca, usa" data-status="" data-i="1" data-geo="bay" data-listed=""><td class="c-co">Chime</td><td class="c-role"><a href="https://job-boards.greenhouse.io/chime/jobs/6534222" target="_blank" rel="noopener">Senior Engineering Manager, Data<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA, USA</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/chime/jobs/6534222" aria-label="Set status for Senior Engineering Manager, Data"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="databricks engineering manager, foundation model inference (fmapi) mountain view, california" data-status="" data-i="2" data-geo="bay" data-listed=""><td class="c-co">Databricks</td><td class="c-role"><a href="https://job-boards.greenhouse.io/databricks/jobs/8472398002" target="_blank" rel="noopener">Engineering Manager, Foundation Model Inference (FMAPI)<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">Mountain View, California</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/databricks/jobs/8472398002" aria-label="Set status for Engineering Manager, Foundation Model Inference (FMAPI)"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
     <p class="day-empty" hidden>No roles match on this date.</p>
   </section>
 <section class="day hidden" data-date="2026-07-20">
@@ -147,114 +256,471 @@ tr[hidden]{display:none;}
       <span class="chip chip-dir">1 Director+</span>
       <span class="chip chip-bay">5 Bay Area</span>
       <span class="chip chip-st" hidden></span></div></div>
-    <div class="tier tier-dir"><div class="tier-head"><h3>Director &amp; above</h3><span class="tier-count">1</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="reddit director of engineering, developer productivity remote - united states" data-status="" data-i="0"><td class="c-co">Reddit</td><td class="c-role"><a href="https://job-boards.greenhouse.io/reddit/jobs/6656789" target="_blank" rel="noopener">Director of Engineering, Developer Productivity<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-remote">Remote</span><span class="loc-txt">Remote - United States</span></td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/reddit/jobs/6656789" aria-label="Set status for Director of Engineering, Developer Productivity"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
-    <div class="tier tier-mgr"><div class="tier-head"><h3>Senior Manager &amp; below</h3><span class="tier-count">7</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="affirm senior engineering manager, machine learning platform remote us" data-status="" data-i="0"><td class="c-co">Affirm</td><td class="c-role"><a href="https://job-boards.greenhouse.io/affirm/jobs/6712345" target="_blank" rel="noopener">Senior Engineering Manager, Machine Learning Platform<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-remote">Remote</span><span class="loc-txt">Remote US</span></td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/affirm/jobs/6712345" aria-label="Set status for Senior Engineering Manager, Machine Learning Platform"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="cerebras engineering manager, systems software sunnyvale, ca" data-status="" data-i="1"><td class="c-co">Cerebras</td><td class="c-role"><a href="https://jobs.ashbyhq.com/cerebras" target="_blank" rel="noopener">Engineering Manager, Systems Software<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">Sunnyvale, CA</span></td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/cerebras" aria-label="Set status for Engineering Manager, Systems Software"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="gusto application systems engineering manager san francisco, ca" data-status="" data-i="2"><td class="c-co">Gusto</td><td class="c-role"><a href="https://job-boards.greenhouse.io/gusto/jobs/6623456" target="_blank" rel="noopener">Application Systems Engineering Manager<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA</span></td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/gusto/jobs/6623456" aria-label="Set status for Application Systems Engineering Manager"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="ripple senior manager, software engineering - payments orchestration san francisco, ca, united states" data-status="" data-i="3"><td class="c-co">Ripple</td><td class="c-role"><a href="https://job-boards.greenhouse.io/ripple/jobs/6634567" target="_blank" rel="noopener">Senior Manager, Software Engineering - Payments Orchestration<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA, United States</span></td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/ripple/jobs/6634567" aria-label="Set status for Senior Manager, Software Engineering - Payments Orchestration"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="samsara engineering manager ii remote - ca" data-status="" data-i="4"><td class="c-co">Samsara</td><td class="c-role"><a href="https://job-boards.greenhouse.io/samsara/jobs/6645678" target="_blank" rel="noopener">Engineering Manager II<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-remote">Remote</span><span class="loc-txt">Remote - CA</span></td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/samsara/jobs/6645678" aria-label="Set status for Engineering Manager II"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="snowflake senior engineering manager - agentic analytics us-ca-menlo park" data-status="" data-i="5"><td class="c-co">Snowflake</td><td class="c-role"><a href="https://jobs.ashbyhq.com/snowflake/cc0b9912-deb9-4ec1-b1cf-f1b358f2eaf1" target="_blank" rel="noopener">Senior Engineering Manager - Agentic Analytics<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">US-CA-Menlo Park</span></td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/snowflake/cc0b9912-deb9-4ec1-b1cf-f1b358f2eaf1" aria-label="Set status for Senior Engineering Manager - Agentic Analytics"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="together ai engineering manager, inference san francisco" data-status="" data-i="6"><td class="c-co">Together AI</td><td class="c-role"><a href="https://job-boards.greenhouse.io/togetherai" target="_blank" rel="noopener">Engineering Manager, Inference<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/togetherai" aria-label="Set status for Engineering Manager, Inference"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
+    <div class="tier tier-dir"><div class="tier-head"><h3>Director &amp; above</h3><span class="tier-count">1</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="reddit director of engineering, developer productivity remote - united states" data-status="" data-i="0" data-geo="remote" data-listed=""><td class="c-co">Reddit</td><td class="c-role"><a href="https://job-boards.greenhouse.io/reddit/jobs/6656789" target="_blank" rel="noopener">Director of Engineering, Developer Productivity<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-remote">Remote</span><span class="loc-txt">Remote - United States</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/reddit/jobs/6656789" aria-label="Set status for Director of Engineering, Developer Productivity"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
+    <div class="tier tier-mgr"><div class="tier-head"><h3>Senior Manager &amp; below</h3><span class="tier-count">7</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="affirm senior engineering manager, machine learning platform remote us" data-status="" data-i="0" data-geo="remote" data-listed=""><td class="c-co">Affirm</td><td class="c-role"><a href="https://job-boards.greenhouse.io/affirm/jobs/6712345" target="_blank" rel="noopener">Senior Engineering Manager, Machine Learning Platform<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-remote">Remote</span><span class="loc-txt">Remote US</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/affirm/jobs/6712345" aria-label="Set status for Senior Engineering Manager, Machine Learning Platform"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="cerebras engineering manager, systems software sunnyvale, ca" data-status="" data-i="1" data-geo="bay" data-listed=""><td class="c-co">Cerebras</td><td class="c-role"><a href="https://jobs.ashbyhq.com/cerebras" target="_blank" rel="noopener">Engineering Manager, Systems Software<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">Sunnyvale, CA</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/cerebras" aria-label="Set status for Engineering Manager, Systems Software"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="gusto application systems engineering manager san francisco, ca" data-status="" data-i="2" data-geo="bay" data-listed=""><td class="c-co">Gusto</td><td class="c-role"><a href="https://job-boards.greenhouse.io/gusto/jobs/6623456" target="_blank" rel="noopener">Application Systems Engineering Manager<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/gusto/jobs/6623456" aria-label="Set status for Application Systems Engineering Manager"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="ripple senior manager, software engineering - payments orchestration san francisco, ca, united states" data-status="" data-i="3" data-geo="bay" data-listed=""><td class="c-co">Ripple</td><td class="c-role"><a href="https://job-boards.greenhouse.io/ripple/jobs/6634567" target="_blank" rel="noopener">Senior Manager, Software Engineering - Payments Orchestration<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA, United States</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/ripple/jobs/6634567" aria-label="Set status for Senior Manager, Software Engineering - Payments Orchestration"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="samsara engineering manager ii remote - ca" data-status="" data-i="4" data-geo="remote" data-listed=""><td class="c-co">Samsara</td><td class="c-role"><a href="https://job-boards.greenhouse.io/samsara/jobs/6645678" target="_blank" rel="noopener">Engineering Manager II<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-remote">Remote</span><span class="loc-txt">Remote - CA</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/samsara/jobs/6645678" aria-label="Set status for Engineering Manager II"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="snowflake senior engineering manager - agentic analytics us-ca-menlo park" data-status="" data-i="5" data-geo="bay" data-listed=""><td class="c-co">Snowflake</td><td class="c-role"><a href="https://jobs.ashbyhq.com/snowflake/cc0b9912-deb9-4ec1-b1cf-f1b358f2eaf1" target="_blank" rel="noopener">Senior Engineering Manager - Agentic Analytics<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">US-CA-Menlo Park</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/snowflake/cc0b9912-deb9-4ec1-b1cf-f1b358f2eaf1" aria-label="Set status for Senior Engineering Manager - Agentic Analytics"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="together ai engineering manager, inference san francisco" data-status="" data-i="6" data-geo="bay" data-listed=""><td class="c-co">Together AI</td><td class="c-role"><a href="https://job-boards.greenhouse.io/togetherai" target="_blank" rel="noopener">Engineering Manager, Inference<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/togetherai" aria-label="Set status for Engineering Manager, Inference"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
     <p class="day-empty" hidden>No roles match on this date.</p>
   </section>
     </main>
   </div>
+  </div>
+  <div id="view-company" class="hidden">
+    <div class="co-layout">
+      <nav class="co-rail" aria-label="Companies">
+        <div class="scanbar">
+          <div class="scanbar-top"><strong>Scan companies</strong><span id="selCount">0 selected</span></div>
+          <div class="scanbar-row">
+            <button id="selAll" class="btn-sm" type="button">All</button>
+            <button id="selNone" class="btn-sm" type="button">None</button>
+            <select id="scanDays" class="btn-sm" aria-label="Days back to scan">
+              <option value="7" selected>7d</option><option value="14">14d</option>
+              <option value="30">30d</option><option value="60">60d</option><option value="90">90d</option>
+            </select>
+          </div>
+          <input id="scanAdd" type="text" placeholder="+ add other companies (comma-sep)…" autocomplete="off" aria-label="Add other companies to scan">
+          <button id="copyScan" class="btn" type="button">Copy scan command</button>
+          <button id="reloadDash" class="btn-sm" type="button">Reload dashboard</button>
+          <input id="scanCmd" class="scan-cmd" readonly hidden aria-label="Scan command (copy this)">
+          <p id="scanNote" class="scan-note">Tick companies → Copy → paste into Claude Code. Zero-token boards scan &amp; persist; no-API ones get a WebSearch pass; the dashboard rebuilds. Then Reload.</p>
+        </div>
+        <input id="coq" type="search" placeholder="Search company…" autocomplete="off" aria-label="Search company">
+        <div class="co-list"><div class="co-row"><input type="checkbox" class="co-chk" data-co="Affirm" aria-label="Select Affirm for scan"><button class="co-item active" data-co="Affirm"><span class="co-nm">Affirm</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Airbnb" aria-label="Select Airbnb for scan"><button class="co-item" data-co="Airbnb"><span class="co-nm">Airbnb</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Anysphere (Cursor)" aria-label="Select Anysphere (Cursor) for scan"><button class="co-item" data-co="Anysphere (Cursor)"><span class="co-nm">Anysphere (Cursor)</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Baseten" aria-label="Select Baseten for scan"><button class="co-item" data-co="Baseten"><span class="co-nm">Baseten</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Cerebras" aria-label="Select Cerebras for scan"><button class="co-item" data-co="Cerebras"><span class="co-nm">Cerebras</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Chime" aria-label="Select Chime for scan"><button class="co-item" data-co="Chime"><span class="co-nm">Chime</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Databricks" aria-label="Select Databricks for scan"><button class="co-item" data-co="Databricks"><span class="co-nm">Databricks</span><span class="co-ct">2</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="DoorDash" aria-label="Select DoorDash for scan"><button class="co-item" data-co="DoorDash"><span class="co-nm">DoorDash</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Gusto" aria-label="Select Gusto for scan"><button class="co-item" data-co="Gusto"><span class="co-nm">Gusto</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Harvey" aria-label="Select Harvey for scan"><button class="co-item" data-co="Harvey"><span class="co-nm">Harvey</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Notion" aria-label="Select Notion for scan"><button class="co-item" data-co="Notion"><span class="co-nm">Notion</span><span class="co-ct">2</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Okta" aria-label="Select Okta for scan"><button class="co-item" data-co="Okta"><span class="co-nm">Okta</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Plaid" aria-label="Select Plaid for scan"><button class="co-item" data-co="Plaid"><span class="co-nm">Plaid</span><span class="co-ct">2</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Reddit" aria-label="Select Reddit for scan"><button class="co-item" data-co="Reddit"><span class="co-nm">Reddit</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Ripple" aria-label="Select Ripple for scan"><button class="co-item" data-co="Ripple"><span class="co-nm">Ripple</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Rippling" aria-label="Select Rippling for scan"><button class="co-item" data-co="Rippling"><span class="co-nm">Rippling</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Roblox" aria-label="Select Roblox for scan"><button class="co-item" data-co="Roblox"><span class="co-nm">Roblox</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Salesforce" aria-label="Select Salesforce for scan"><button class="co-item" data-co="Salesforce"><span class="co-nm">Salesforce</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Samsara" aria-label="Select Samsara for scan"><button class="co-item" data-co="Samsara"><span class="co-nm">Samsara</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Scale AI" aria-label="Select Scale AI for scan"><button class="co-item" data-co="Scale AI"><span class="co-nm">Scale AI</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Snowflake" aria-label="Select Snowflake for scan"><button class="co-item" data-co="Snowflake"><span class="co-nm">Snowflake</span><span class="co-ct">2</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Together AI" aria-label="Select Together AI for scan"><button class="co-item" data-co="Together AI"><span class="co-nm">Together AI</span><span class="co-ct">1</span></button></div><div class="co-row"><input type="checkbox" class="co-chk" data-co="Zscaler" aria-label="Select Zscaler for scan"><button class="co-item" data-co="Zscaler"><span class="co-nm">Zscaler</span><span class="co-ct">1</span></button></div></div>
+      </nav>
+      <main>
+        <div class="toolbar">
+          <input id="coRoleQ" type="search" placeholder="Filter roles by title or location…" autocomplete="off" aria-label="Filter roles">
+          <select id="cosort" aria-label="Sort roles"><option value="found" selected>Sort: Date found (newest)</option><option value="listed">Sort: Date listed (newest)</option><option value="role">Sort: Role A–Z</option></select>
+        </div>
+        <p class="savednote">Status is shared with the “By scan date” tab — same posting, one status (matched by normalized URL). Expired postings are shown dimmed.</p>
+        <section class="co" data-co="Affirm">
+    <div class="day-head"><h2>Affirm</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="affirm senior engineering manager, machine learning platform remote us" data-status="" data-geo="remote" data-found="2026-07-20" data-listed="" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/affirm/jobs/6712345" target="_blank" rel="noopener">Senior Engineering Manager, Machine Learning Platform<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-remote">Remote</span><span class="loc-txt">Remote US</span></td><td class="c-date">Jul 20, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/affirm/jobs/6712345" aria-label="Set status for Senior Engineering Manager, Machine Learning Platform"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Airbnb">
+    <div class="day-head"><h2>Airbnb</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="airbnb engineering manager, payments usa - remote" data-status="" data-geo="remote" data-found="2026-07-21" data-listed="" data-exp="0"><td class="c-role"><a href="https://careers.airbnb.com/positions/8044558" target="_blank" rel="noopener">Engineering Manager, Payments<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-remote">Remote</span><span class="loc-txt">USA - Remote</span></td><td class="c-date">Jul 21, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://careers.airbnb.com/positions/8044558" aria-label="Set status for Engineering Manager, Payments"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Anysphere (Cursor)">
+    <div class="day-head"><h2>Anysphere (Cursor)</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="anysphere (cursor) engineering manager, ml san francisco" data-status="" data-geo="bay" data-found="2026-07-22" data-listed="" data-exp="0"><td class="c-role"><a href="https://jobs.ashbyhq.com/cursor" target="_blank" rel="noopener">Engineering Manager, ML<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">Jul 22, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/cursor" aria-label="Set status for Engineering Manager, ML"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Baseten">
+    <div class="day-head"><h2>Baseten</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="baseten engineering manager, model library san francisco" data-status="" data-geo="bay" data-found="2026-07-22" data-listed="" data-exp="0"><td class="c-role"><a href="https://jobs.ashbyhq.com/baseten" target="_blank" rel="noopener">Engineering Manager, Model Library<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">Jul 22, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/baseten" aria-label="Set status for Engineering Manager, Model Library"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Cerebras">
+    <div class="day-head"><h2>Cerebras</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="cerebras engineering manager, systems software sunnyvale, ca" data-status="" data-geo="bay" data-found="2026-07-20" data-listed="" data-exp="0"><td class="c-role"><a href="https://jobs.ashbyhq.com/cerebras" target="_blank" rel="noopener">Engineering Manager, Systems Software<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">Sunnyvale, CA</span></td><td class="c-date">Jul 20, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/cerebras" aria-label="Set status for Engineering Manager, Systems Software"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Chime">
+    <div class="day-head"><h2>Chime</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="chime senior engineering manager, data san francisco, ca, usa" data-status="" data-geo="bay" data-found="2026-07-21" data-listed="" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/chime/jobs/6534222" target="_blank" rel="noopener">Senior Engineering Manager, Data<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA, USA</span></td><td class="c-date">Jul 21, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/chime/jobs/6534222" aria-label="Set status for Senior Engineering Manager, Data"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Databricks">
+    <div class="day-head"><h2>Databricks</h2>
+      <div class="chips"><span class="chip">2 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="databricks director, model serving mountain view, california" data-status="" data-geo="bay" data-found="2026-07-23" data-listed="2026-07-22" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/databricks/jobs/8472399100" target="_blank" rel="noopener">Director, Model Serving<span class="ext" aria-hidden="true">↗</span></a><span class="src-badge" title="found via scanc, not a scan run">scanc</span></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">Mountain View, California</span></td><td class="c-date">Jul 23, 2026</td><td class="c-date">Jul 22, 2026</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/databricks/jobs/8472399100" aria-label="Set status for Director, Model Serving"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr class="" data-s="databricks engineering manager, foundation model inference (fmapi) mountain view, california" data-status="" data-geo="bay" data-found="2026-07-21" data-listed="2026-07-17" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/databricks/jobs/8472398002" target="_blank" rel="noopener">Engineering Manager, Foundation Model Inference (FMAPI)<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">Mountain View, California</span></td><td class="c-date">Jul 21, 2026</td><td class="c-date">Jul 17, 2026</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/databricks/jobs/8472398002" aria-label="Set status for Engineering Manager, Foundation Model Inference (FMAPI)"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="DoorDash">
+    <div class="day-head"><h2>DoorDash</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="doordash director of engineering, logistics san francisco, ca; sunnyvale, ca" data-status="" data-geo="bay" data-found="2026-07-21" data-listed="" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/doordashusa/jobs/7891795" target="_blank" rel="noopener">Director of Engineering, Logistics<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA; Sunnyvale, CA</span></td><td class="c-date">Jul 21, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/doordashusa/jobs/7891795" aria-label="Set status for Director of Engineering, Logistics"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Gusto">
+    <div class="day-head"><h2>Gusto</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="gusto application systems engineering manager san francisco, ca" data-status="" data-geo="bay" data-found="2026-07-20" data-listed="" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/gusto/jobs/6623456" target="_blank" rel="noopener">Application Systems Engineering Manager<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA</span></td><td class="c-date">Jul 20, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/gusto/jobs/6623456" aria-label="Set status for Application Systems Engineering Manager"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Harvey">
+    <div class="day-head"><h2>Harvey</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="harvey director of engineering, core product san francisco" data-status="" data-geo="bay" data-found="2026-07-22" data-listed="" data-exp="0"><td class="c-role"><a href="https://jobs.ashbyhq.com/harvey/f42d9022-87e7-4620-8470-00f37f6757c4" target="_blank" rel="noopener">Director of Engineering, Core Product<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">Jul 22, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/harvey/f42d9022-87e7-4620-8470-00f37f6757c4" aria-label="Set status for Director of Engineering, Core Product"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Notion">
+    <div class="day-head"><h2>Notion</h2>
+      <div class="chips"><span class="chip">2 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="notion engineering manager, ai platform san francisco, california" data-status="" data-geo="bay" data-found="2026-07-23" data-listed="2026-07-20" data-exp="0"><td class="c-role"><a href="https://jobs.ashbyhq.com/notion/ai-platform" target="_blank" rel="noopener">Engineering Manager, AI Platform<span class="ext" aria-hidden="true">↗</span></a><span class="src-badge" title="found via scanc, not a scan run">scanc</span></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, California</span></td><td class="c-date">Jul 23, 2026</td><td class="c-date">Jul 20, 2026</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/notion/ai-platform" aria-label="Set status for Engineering Manager, AI Platform"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr class="" data-s="notion engineering manager, context (agentic search) san francisco, california" data-status="" data-geo="bay" data-found="2026-07-22" data-listed="2026-07-19" data-exp="0"><td class="c-role"><a href="https://jobs.ashbyhq.com/notion" target="_blank" rel="noopener">Engineering Manager, Context (Agentic Search)<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, California</span></td><td class="c-date">Jul 22, 2026</td><td class="c-date">Jul 19, 2026</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/notion" aria-label="Set status for Engineering Manager, Context (Agentic Search)"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Okta">
+    <div class="day-head"><h2>Okta</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="okta director, engineering - okta integration network san francisco, california" data-status="" data-geo="bay" data-found="2026-07-21" data-listed="" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/okta/jobs/6511111" target="_blank" rel="noopener">Director, Engineering - Okta Integration Network<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, California</span></td><td class="c-date">Jul 21, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/okta/jobs/6511111" aria-label="Set status for Director, Engineering - Okta Integration Network"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Plaid">
+    <div class="day-head"><h2>Plaid</h2>
+      <div class="chips"><span class="chip">2 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="plaid director, applied ai san francisco" data-status="" data-geo="bay" data-found="2026-07-23" data-listed="2026-07-21" data-exp="0"><td class="c-role"><a href="https://jobs.ashbyhq.com/plaid/applied-ai" target="_blank" rel="noopener">Director, Applied AI<span class="ext" aria-hidden="true">↗</span></a><span class="src-badge" title="found via scanc, not a scan run">scanc</span></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">Jul 23, 2026</td><td class="c-date">Jul 21, 2026</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/plaid/applied-ai" aria-label="Set status for Director, Applied AI"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr class="" data-s="plaid engineering manager, ai applications san francisco" data-status="" data-geo="bay" data-found="2026-07-22" data-listed="2026-07-18" data-exp="0"><td class="c-role"><a href="https://jobs.ashbyhq.com/plaid" target="_blank" rel="noopener">Engineering Manager, AI Applications<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">Jul 22, 2026</td><td class="c-date">Jul 18, 2026</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/plaid" aria-label="Set status for Engineering Manager, AI Applications"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Reddit">
+    <div class="day-head"><h2>Reddit</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="reddit director of engineering, developer productivity remote - united states" data-status="" data-geo="remote" data-found="2026-07-20" data-listed="" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/reddit/jobs/6656789" target="_blank" rel="noopener">Director of Engineering, Developer Productivity<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-remote">Remote</span><span class="loc-txt">Remote - United States</span></td><td class="c-date">Jul 20, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/reddit/jobs/6656789" aria-label="Set status for Director of Engineering, Developer Productivity"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Ripple">
+    <div class="day-head"><h2>Ripple</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="ripple senior manager, software engineering - payments orchestration san francisco, ca, united states" data-status="" data-geo="bay" data-found="2026-07-20" data-listed="" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/ripple/jobs/6634567" target="_blank" rel="noopener">Senior Manager, Software Engineering - Payments Orchestration<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA, United States</span></td><td class="c-date">Jul 20, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/ripple/jobs/6634567" aria-label="Set status for Senior Manager, Software Engineering - Payments Orchestration"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Rippling">
+    <div class="day-head"><h2>Rippling</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="rippling director of engineering - infrastructure san francisco, ca" data-status="" data-geo="bay" data-found="2026-07-22" data-listed="" data-exp="0"><td class="c-role"><a href="https://ats.rippling.com/rippling/jobs/2f2ae4c8-ec56-4d1f-8f2a-0d295674e19c" target="_blank" rel="noopener">Director of Engineering - Infrastructure<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA</span></td><td class="c-date">Jul 22, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://ats.rippling.com/rippling/jobs/2f2ae4c8-ec56-4d1f-8f2a-0d295674e19c" aria-label="Set status for Director of Engineering - Infrastructure"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Roblox">
+    <div class="day-head"><h2>Roblox</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="roblox director of engineering, economy ml san mateo, ca, united states" data-status="" data-geo="bay" data-found="2026-07-21" data-listed="" data-exp="0"><td class="c-role"><a href="https://careers.roblox.com/jobs/7963129" target="_blank" rel="noopener">Director of Engineering, Economy ML<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Mateo, CA, United States</span></td><td class="c-date">Jul 21, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://careers.roblox.com/jobs/7963129" aria-label="Set status for Director of Engineering, Economy ML"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Salesforce">
+    <div class="day-head"><h2>Salesforce</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="salesforce director - software engineering california - san francisco" data-status="" data-geo="bay" data-found="2026-07-22" data-listed="" data-exp="0"><td class="c-role"><a href="https://salesforce.wd12.myworkdayjobs.com/External_Career_Site/job/California---San-Francisco/Director---Software-Engineering_JR350368" target="_blank" rel="noopener">Director - Software Engineering<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">California - San Francisco</span></td><td class="c-date">Jul 22, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://salesforce.wd12.myworkdayjobs.com/External_Career_Site/job/California---San-Francisco/Director---Software-Engineering_JR350368" aria-label="Set status for Director - Software Engineering"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Samsara">
+    <div class="day-head"><h2>Samsara</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="samsara engineering manager ii remote - ca" data-status="" data-geo="remote" data-found="2026-07-20" data-listed="" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/samsara/jobs/6645678" target="_blank" rel="noopener">Engineering Manager II<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-remote">Remote</span><span class="loc-txt">Remote - CA</span></td><td class="c-date">Jul 20, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/samsara/jobs/6645678" aria-label="Set status for Engineering Manager II"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Scale AI">
+    <div class="day-head"><h2>Scale AI</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="scale ai engineering manager, agent oversight san francisco, ca; new york, ny" data-status="" data-geo="bay" data-found="2026-07-22" data-listed="" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/scaleai" target="_blank" rel="noopener">Engineering Manager, Agent Oversight<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, CA; New York, NY</span></td><td class="c-date">Jul 22, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/scaleai" aria-label="Set status for Engineering Manager, Agent Oversight"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Snowflake">
+    <div class="day-head"><h2>Snowflake</h2>
+      <div class="chips"><span class="chip">2 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="snowflake director of engineering, ai functions us-ca-menlo park" data-status="" data-geo="bay" data-found="2026-07-22" data-listed="" data-exp="0"><td class="c-role"><a href="https://jobs.ashbyhq.com/snowflake/4674b19c-2a2f-4315-8229-b23a2c1336b4" target="_blank" rel="noopener">Director of Engineering, AI Functions<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">US-CA-Menlo Park</span></td><td class="c-date">Jul 22, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/snowflake/4674b19c-2a2f-4315-8229-b23a2c1336b4" aria-label="Set status for Director of Engineering, AI Functions"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr class="" data-s="snowflake senior engineering manager - agentic analytics us-ca-menlo park" data-status="" data-geo="bay" data-found="2026-07-20" data-listed="" data-exp="0"><td class="c-role"><a href="https://jobs.ashbyhq.com/snowflake/cc0b9912-deb9-4ec1-b1cf-f1b358f2eaf1" target="_blank" rel="noopener">Senior Engineering Manager - Agentic Analytics<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">US-CA-Menlo Park</span></td><td class="c-date">Jul 20, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/snowflake/cc0b9912-deb9-4ec1-b1cf-f1b358f2eaf1" aria-label="Set status for Senior Engineering Manager - Agentic Analytics"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Together AI">
+    <div class="day-head"><h2>Together AI</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="together ai engineering manager, inference san francisco" data-status="" data-geo="bay" data-found="2026-07-20" data-listed="" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/togetherai" target="_blank" rel="noopener">Engineering Manager, Inference<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">Jul 20, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/togetherai" aria-label="Set status for Engineering Manager, Inference"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+<section class="co hidden" data-co="Zscaler">
+    <div class="day-head"><h2>Zscaler</h2>
+      <div class="chips"><span class="chip">1 live</span>
+      </div></div>
+    <div class="tw"><table><thead><tr><th class="c-role">Role</th><th class="c-loc">Location</th>
+    <th class="c-date">Found</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead>
+    <tbody><tr class="" data-s="zscaler director, software engineering - common platform services san jose, california, usa" data-status="" data-geo="bay" data-found="2026-07-22" data-listed="" data-exp="0"><td class="c-role"><a href="https://job-boards.greenhouse.io/zscaler/jobs/5166806007" target="_blank" rel="noopener">Director, Software Engineering - Common Platform Services<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Jose, California, USA</span></td><td class="c-date">Jul 22, 2026</td><td class="c-date">—</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/zscaler/jobs/5166806007" aria-label="Set status for Director, Software Engineering - Common Platform Services"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div>
+    <p class="co-empty" hidden>No roles match.</p>
+  </section>
+      </main>
+    </div>
+  </div>
+  <div id="view-recent" class="hidden">
+  <div class="mobile-nav"><select id="rdsel" aria-label="Select scanc date"><option value="2026-07-23" selected>Jul 23, 2026 — 6 roles</option></select></div>
+  <div class="layout">
+    <nav class="rail" aria-label="Scanc dates">
+      <p class="rail-lab">Scanc dates</p>
+      <button class="rail-item active" data-date="2026-07-23"><span class="rail-date">Jul 23, 2026</span><span class="rail-meta"><span class="rail-n">6</span> roles · 2 dir · 6 bay</span></button>
+    </nav>
+    <main>
+      <div class="toolbar">
+        <input id="rq" type="search" placeholder="Filter this date by company, role, or location…" autocomplete="off" aria-label="Filter roles">
+        <select id="rstfilter" aria-label="Filter by status"><option value="">All statuses</option><option value="__set">Any status set</option><option value="__none">No status</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select>
+        <select id="rsortsel" aria-label="Sort roles"><option value="status" selected>Sort: Status first</option><option value="company">Sort: Company</option></select>
+      </div>
+      <p class="savednote">Roles from companies you've scanned with <strong>scanc</strong>, grouped by scanc date (only scanc-scanned companies). Status is shared with the other tabs; use the <strong>Location</strong> control above to filter by region.</p>
+      <section class="day" data-date="2026-07-23">
+    <div class="day-head"><h2>Jul 23, 2026</h2>
+      <div class="chips"><span class="chip">6 roles</span>
+      <span class="chip chip-dir">2 Director+</span>
+      <span class="chip chip-bay">6 Bay Area</span>
+      <span class="chip chip-st" hidden></span></div></div>
+    <div class="tier tier-dir"><div class="tier-head"><h3>Director &amp; above</h3><span class="tier-count">2</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="databricks director, model serving mountain view, california" data-status="" data-i="0" data-geo="bay" data-listed="2026-07-22"><td class="c-co">Databricks</td><td class="c-role"><a href="https://job-boards.greenhouse.io/databricks/jobs/8472399100" target="_blank" rel="noopener">Director, Model Serving<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">Mountain View, California</span></td><td class="c-date">Jul 22, 2026</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/databricks/jobs/8472399100" aria-label="Set status for Director, Model Serving"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="plaid director, applied ai san francisco" data-status="" data-i="1" data-geo="bay" data-listed="2026-07-21"><td class="c-co">Plaid</td><td class="c-role"><a href="https://jobs.ashbyhq.com/plaid/applied-ai" target="_blank" rel="noopener">Director, Applied AI<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">Jul 21, 2026</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/plaid/applied-ai" aria-label="Set status for Director, Applied AI"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
+    <div class="tier tier-mgr"><div class="tier-head"><h3>Senior Manager &amp; below</h3><span class="tier-count">4</span></div><div class="tw"><table><thead><tr><th class="c-co">Company</th><th class="c-role">Role</th><th class="c-loc">Location</th><th class="c-date">Listed</th><th class="c-st">Status</th></tr></thead><tbody><tr data-s="databricks engineering manager, foundation model inference (fmapi) mountain view, california" data-status="" data-i="0" data-geo="bay" data-listed="2026-07-17"><td class="c-co">Databricks</td><td class="c-role"><a href="https://job-boards.greenhouse.io/databricks/jobs/8472398002" target="_blank" rel="noopener">Engineering Manager, Foundation Model Inference (FMAPI)<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">Mountain View, California</span></td><td class="c-date">Jul 17, 2026</td><td class="c-st"><select class="stsel" data-url="https://job-boards.greenhouse.io/databricks/jobs/8472398002" aria-label="Set status for Engineering Manager, Foundation Model Inference (FMAPI)"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="notion engineering manager, ai platform san francisco, california" data-status="" data-i="1" data-geo="bay" data-listed="2026-07-20"><td class="c-co">Notion</td><td class="c-role"><a href="https://jobs.ashbyhq.com/notion/ai-platform" target="_blank" rel="noopener">Engineering Manager, AI Platform<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, California</span></td><td class="c-date">Jul 20, 2026</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/notion/ai-platform" aria-label="Set status for Engineering Manager, AI Platform"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="notion engineering manager, context (agentic search) san francisco, california" data-status="" data-i="2" data-geo="bay" data-listed="2026-07-19"><td class="c-co">Notion</td><td class="c-role"><a href="https://jobs.ashbyhq.com/notion" target="_blank" rel="noopener">Engineering Manager, Context (Agentic Search)<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco, California</span></td><td class="c-date">Jul 19, 2026</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/notion" aria-label="Set status for Engineering Manager, Context (Agentic Search)"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr><tr data-s="plaid engineering manager, ai applications san francisco" data-status="" data-i="3" data-geo="bay" data-listed="2026-07-18"><td class="c-co">Plaid</td><td class="c-role"><a href="https://jobs.ashbyhq.com/plaid" target="_blank" rel="noopener">Engineering Manager, AI Applications<span class="ext" aria-hidden="true">↗</span></a></td><td class="c-loc"><span class="geo geo-bay">Bay Area</span><span class="loc-txt">San Francisco</span></td><td class="c-date">Jul 18, 2026</td><td class="c-st"><select class="stsel" data-url="https://jobs.ashbyhq.com/plaid" aria-label="Set status for Engineering Manager, AI Applications"><option value="">— set status —</option><option value="interested">Interested</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offer">Offer</option><option value="notfound">Role Not Found</option><option value="notfit">Not a fit</option><option value="notinterested">Not interested</option><option value="rejected">Rejected</option></select></td></tr></tbody></table></div></div>
+    <p class="day-empty" hidden>No roles match on this date.</p>
+  </section>
+    </main>
+  </div>
+  </div>
+  <div id="view-jds" class="hidden">
+    <div class="jd-layout">
+      <nav class="jd-rail" aria-label="Applied job descriptions">
+        <input id="jdq" type="search" placeholder="Search company…" autocomplete="off" aria-label="Search applied JDs by company">
+        <div class="jd-list"><button class="jd-item active" data-idx="0" data-s="databricks engineering manager, foundation model inference (fmapi)"><span class="jd-co">Databricks</span><span class="jd-role">Engineering Manager, Foundation Model Inference (FMAPI)</span><span class="jd-meta">2026-07-23<span class="jd-badge jd-live">JD</span></span></button><button class="jd-item" data-idx="1" data-s="notion engineering manager, context (agentic search)"><span class="jd-co">Notion</span><span class="jd-role">Engineering Manager, Context (Agentic Search)</span><span class="jd-meta">2026-07-23<span class="jd-badge jd-live">JD</span></span></button><button class="jd-item" data-idx="2" data-s="snowflake director of engineering, ai functions"><span class="jd-co">Snowflake</span><span class="jd-role">Director of Engineering, AI Functions</span><span class="jd-meta">2026-07-22<span class="jd-badge jd-live">JD</span></span></button></div>
+      </nav>
+      <main class="jd-reader">
+        <div id="jdReader" class="jd-doc"><p class="sub">Select a role on the left to read its full job description. Archived by <code>snapshot-jd</code> from roles you marked Applied.</p></div>
+      </main>
+    </div>
+  </div>
   <footer>Local, offline dashboard · statuses are yours (browser + data/role-status.json) · nothing here is an application.</footer>
 </div>
-<script>window.__SEED={"statuses":{}};</script>
+<script>window.__SEED={"statuses":{"https://jobs.ashbyhq.com/snowflake/4674b19c-2a2f-4315-8229-b23a2c1336b4":"applied","https://jobs.ashbyhq.com/harvey/f42d9022-87e7-4620-8470-00f37f6757c4":"applied","https://salesforce.wd12.myworkdayjobs.com/External_Career_Site/job/California---San-Francisco/Director---Software-Engineering_JR350368":"interviewing","https://jobs.ashbyhq.com/notion":"interested","https://job-boards.greenhouse.io/databricks/jobs/8472398002":"interested","https://job-boards.greenhouse.io/okta/jobs/6511111":"notfit","https://job-boards.greenhouse.io/doordashusa/jobs/7891795":"rejected"}};</script>
+<script>window.__JDS=[{"url":"https://job-boards.greenhouse.io/databricks/jobs/8472398002","role":"Engineering Manager, Foundation Model Inference (FMAPI)","company":"Databricks","applied":"2026-07-23","status":"live","source":"greenhouse","wayback":"","body":"About the Role\n\nSample data for the public demo. This is a generic, illustrative job description used only to\nshow the \"Applied JDs\" tab — it is not a copy of any real posting.\n\nLead the Foundation Model Inference team responsible for the serving stack behind the platform's\nmodel APIs — throughput, latency, and cost at very large scale.\n\nResponsibilities\n\n- Manage engineers building high-performance inference and batching systems.\n- Own reliability, autoscaling, and unit economics of the inference fleet.\n- Partner with model and product teams to expose new capabilities safely.\n\nWhat we look for\n\n- Experience leading systems/ML-infra engineers.\n- Depth in distributed systems, GPUs, or high-throughput serving."},{"url":"https://jobs.ashbyhq.com/notion","role":"Engineering Manager, Context (Agentic Search)","company":"Notion","applied":"2026-07-23","status":"live","source":"ashby","wayback":"","body":"About the Role\n\nSample data for the public demo. This is a generic, illustrative job description used only to\nshow the \"Applied JDs\" tab — it is not a copy of any real posting.\n\nYou will lead the Context team building the agentic-search layer that lets users ask questions across\ntheir workspace and get grounded, cited answers.\n\nResponsibilities\n\n- Manage a team of engineers building retrieval, ranking, and agentic orchestration.\n- Drive quality and latency for search over large, permissioned knowledge bases.\n- Collaborate with applied-AI and product to ship trustworthy, explainable results.\n\nWhat we look for\n\n- Experience managing engineers on search, ML, or infrastructure.\n- Comfort with evaluation-driven development and fast iteration."},{"url":"https://jobs.ashbyhq.com/snowflake/4674b19c-2a2f-4315-8229-b23a2c1336b4","role":"Director of Engineering, AI Functions","company":"Snowflake","applied":"2026-07-22","status":"live","source":"ashby","wayback":"","body":"About the Role\n\nSample data for the public demo. This is a generic, illustrative job description used only to\nshow the \"Applied JDs\" tab — it is not a copy of any real posting.\n\nWe are looking for a Director of Engineering to lead the AI Functions team, owning the roadmap for\nin-platform generative and analytical AI capabilities used by thousands of enterprise customers.\n\nResponsibilities\n\n- Lead and grow a team of engineering managers and senior engineers building AI-native product surfaces.\n- Own the technical strategy for large-model inference, retrieval, and evaluation inside the platform.\n- Partner with product and research to turn frontier capabilities into reliable, governed features.\n- Set the bar for quality, observability, and cost efficiency across a high-scale service.\n\nWhat we look for\n\n- 10+ years in software engineering with several years leading managers.\n- Track record shipping ML/AI-backed products at scale.\n- Strong systems fundamentals and a bias toward operational excellence."}];</script>
 <script>
 (function(){
-  var rail=[].slice.call(document.querySelectorAll('.rail-item'));
-  var days=[].slice.call(document.querySelectorAll('.day'));
-  var sel=document.getElementById('dsel'), q=document.getElementById('q');
-  var stfilter=document.getElementById('stfilter');
-  var sortsel=document.getElementById('sortsel');
   var selects=[].slice.call(document.querySelectorAll('.stsel'));
-  var STORE_KEY='cops-role-status';
-  var RANK={offer:0,interviewing:1,applied:2,interested:3,'':4,notfit:5,notinterested:6,rejected:7};
-  var STLABEL={interested:'Interested',applied:'Applied',interviewing:'Interviewing',offer:'Offer',notfit:'Not a fit',notinterested:'Not interested',rejected:'Rejected'};
-  var STORDER=['offer','interviewing','applied','interested','notfit','notinterested','rejected'];
-  function visibleDay(){ return days.filter(function(d){return !d.classList.contains('hidden');})[0]; }
-  function sortRows(day){
-    if(!day) return;
-    var mode=sortsel?sortsel.value:'status';
-    [].slice.call(day.querySelectorAll('tbody')).forEach(function(tb){
-      var rows=[].slice.call(tb.querySelectorAll('tr'));
-      rows.sort(function(a,b){
-        var ai=+a.getAttribute('data-i'), bi=+b.getAttribute('data-i');
-        if(mode==='status'){
-          var ra=RANK[a.getAttribute('data-status')||'']; if(ra==null)ra=4;
-          var rb=RANK[b.getAttribute('data-status')||'']; if(rb==null)rb=4;
-          if(ra!==rb) return ra-rb;
-        }
-        return ai-bi;
-      });
-      rows.forEach(function(r){ tb.appendChild(r); });
-    });
-  }
-  function updateSummary(day){
-    if(!day) return;
-    var counts={};
-    [].slice.call(day.querySelectorAll('tbody tr')).forEach(function(r){
-      var st=r.getAttribute('data-status')||''; if(st) counts[st]=(counts[st]||0)+1;
-    });
-    var parts=STORDER.filter(function(k){return counts[k];}).map(function(k){return counts[k]+' '+STLABEL[k];});
-    var chip=day.querySelector('.chip-st');
-    if(chip){ if(parts.length){ chip.textContent=parts.join(' · '); chip.hidden=false; } else { chip.hidden=true; } }
-  }
-  function refresh(){ var d=visibleDay(); sortRows(d); updateSummary(d); filter(); }
 
+  // ── Global Location view control (view-only; rows hide via body[data-loc] CSS) ──
+  // A row is truly visible iff no ancestor/CSS hides it → offsetParent!==null. Use
+  // that to collapse tier tables / wrappers that end up empty under the current
+  // Location tier or search, so a section doesn't render an empty shell.
+  function recomputeEmpties(){
+    [].slice.call(document.querySelectorAll('.tier, .tw')).forEach(function(el){
+      if(el.classList.contains('tw') && el.closest('.tier')) return;   // .tier owns its inner .tw
+      var rows=el.querySelectorAll('tbody tr');
+      if(!rows.length) return;
+      // Reset display BEFORE measuring — otherwise a container hidden while its
+      // tab was inactive stays hidden forever (its rows read offsetParent=null
+      // through the already-collapsed container). Reset lets it recover on open.
+      el.style.display='';
+      var vis=[].slice.call(rows).some(function(r){ return r.offsetParent!==null; });
+      el.style.display=vis?'':'none';
+    });
+  }
+  var locSel=document.getElementById('locSel');
+  function applyLoc(){
+    var v=(locSel&&locSel.value)||'bayremote';
+    document.body.setAttribute('data-loc', v);
+    try{ localStorage.setItem('cops-loc', v); }catch(e){}
+    recomputeEmpties();
+  }
+  (function initLoc(){
+    var saved='bayremote'; try{ saved=localStorage.getItem('cops-loc')||'bayremote'; }catch(e){}
+    if(locSel) locSel.value=saved;
+    document.body.setAttribute('data-loc', saved);
+  })();
+  if(locSel) locSel.addEventListener('change', applyLoc);
+
+  var STORE_KEY='cops-role-status';
+  var RANK={offer:0,interviewing:1,applied:2,interested:3,'':4,notfound:5,notfit:6,notinterested:7,rejected:8};
+  var STLABEL={interested:'Interested',applied:'Applied',interviewing:'Interviewing',offer:'Offer',notfound:'Role Not Found',notfit:'Not a fit',notinterested:'Not interested',rejected:'Rejected'};
+  var STORDER=['offer','interviewing','applied','interested','notfound','notfit','notinterested','rejected'];
+
+  // Normalize a posting URL so the SAME posting maps to ONE status key across every
+  // tab and repeat scans — strips utm_*/gh_src/lever-source NOISE params but KEEPS
+  // identifying ones (e.g. gh_jid), so two distinct jobs never collapse to one.
+  var DROP_PARAMS=['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gh_src','source','src','ref','lever-origin','lever-source','lever-via'];
+  function normUrl(u){
+    try{
+      var x=new URL(u); x.hash='';
+      DROP_PARAMS.forEach(function(p){ x.searchParams.delete(p); });
+      var base=x.protocol+'//'+x.host.toLowerCase()+x.pathname.replace(/[/]+$/,'');
+      var qs=x.searchParams.toString();
+      return qs? base+'?'+qs : base;
+    }catch(e){ return u; }
+  }
   function loadStore(){
     var seed=(window.__SEED&&window.__SEED.statuses)||{}, ls={};
     try{ ls=JSON.parse(localStorage.getItem(STORE_KEY)||'{}'); }catch(e){}
-    return Object.assign({}, seed, ls);      // localStorage (your live edits) wins
+    var out={};
+    Object.keys(seed).forEach(function(k){ if(seed[k]) out[normUrl(k)]=seed[k]; });
+    Object.keys(ls).forEach(function(k){ if(ls[k]) out[normUrl(k)]=ls[k]; });
+    return out;
   }
   function saveStore(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){} }
   var store=loadStore();
 
   function paint(s){
-    var url=s.getAttribute('data-url'), v=store[url]||'';
+    var url=normUrl(s.getAttribute('data-url')), v=store[url]||'';
     s.value=v; s.className='stsel st-'+(v||'none');
     var tr=s.closest('tr'); if(tr) tr.setAttribute('data-status', v);
   }
   selects.forEach(function(s){
     paint(s);
     s.addEventListener('change', function(){
-      var url=s.getAttribute('data-url');
+      var url=normUrl(s.getAttribute('data-url'));
       if(s.value) store[url]=s.value; else delete store[url];
-      saveStore(); paint(s); refresh();
+      saveStore();
+      // Repaint EVERY select for this posting — the same job can appear in multiple
+      // tabs / dates; keep them in sync. Use a SOFT refresh (update summary + filter,
+      // but do NOT re-sort) so setting a status never reorders rows out from under you.
+      selects.forEach(function(x){ if(normUrl(x.getAttribute('data-url'))===url) paint(x); });
+      refreshActive(true);
+      if(window.__updateBanner) window.__updateBanner();   // Applied→missing-JD count may have changed
+      if(window.__autoSave) window.__autoSave();   // mirror to data/role-status.json if "Link file" is on
     });
   });
 
-  function show(date){
-    days.forEach(function(d){ d.classList.toggle('hidden', d.getAttribute('data-date')!==date); });
-    rail.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-date')===date); });
-    if(sel) sel.value=date;
-    refresh();
+  // ── Date-view engine: mounted for BOTH "By scan date" and "Recent scanc" ──
+  // Identical behavior (rail nav + mobile select + search + status filter + sort +
+  // summary), scoped to its container so the two tabs never cross-wire.
+  function mountDateView(root, ids){
+    if(!root) return { refresh:function(){} };
+    var rail=[].slice.call(root.querySelectorAll('.rail-item'));
+    var days=[].slice.call(root.querySelectorAll('.day'));
+    var sel=document.getElementById(ids.sel), q=document.getElementById(ids.q);
+    var stfilter=document.getElementById(ids.stfilter), sortsel=document.getElementById(ids.sortsel);
+    function visibleDay(){ return days.filter(function(d){return !d.classList.contains('hidden');})[0]; }
+    function sortRows(day){
+      if(!day) return;
+      var mode=sortsel?sortsel.value:'status';
+      [].slice.call(day.querySelectorAll('tbody')).forEach(function(tb){
+        var rows=[].slice.call(tb.querySelectorAll('tr'));
+        rows.sort(function(a,b){
+          var ai=+a.getAttribute('data-i'), bi=+b.getAttribute('data-i');
+          if(mode==='status'){
+            var ra=RANK[a.getAttribute('data-status')||'']; if(ra==null)ra=4;
+            var rb=RANK[b.getAttribute('data-status')||'']; if(rb==null)rb=4;
+            if(ra!==rb) return ra-rb;
+          }
+          return ai-bi;
+        });
+        rows.forEach(function(r){ tb.appendChild(r); });
+      });
+    }
+    function updateSummary(day){
+      if(!day) return;
+      var counts={};
+      [].slice.call(day.querySelectorAll('tbody tr')).forEach(function(r){
+        var st=r.getAttribute('data-status')||''; if(st) counts[st]=(counts[st]||0)+1;
+      });
+      var parts=STORDER.filter(function(k){return counts[k];}).map(function(k){return counts[k]+' '+STLABEL[k];});
+      var chip=day.querySelector('.chip-st');
+      if(chip){ if(parts.length){ chip.textContent=parts.join(' · '); chip.hidden=false; } else { chip.hidden=true; } }
+    }
+    function filter(){
+      var t=((q&&q.value)||'').trim().toLowerCase(), sf=stfilter?stfilter.value:'';
+      var day=visibleDay(); if(!day) return;
+      var shown=0;
+      [].slice.call(day.querySelectorAll('tbody tr')).forEach(function(r){
+        var st=r.getAttribute('data-status')||'';
+        var stOk = !sf || (sf==='__set'? st!=='' : sf==='__none'? st==='' : st===sf);
+        var m=(!t||r.getAttribute('data-s').indexOf(t)>-1)&&stOk;
+        r.hidden=!m; if(m)shown++;
+      });
+      var empty=day.querySelector('.day-empty'); if(empty) empty.hidden=shown>0;
+    }
+    function show(date){
+      days.forEach(function(d){ d.classList.toggle('hidden', d.getAttribute('data-date')!==date); });
+      rail.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-date')===date); });
+      if(sel) sel.value=date;
+      refresh();
+    }
+    function refresh(){ var d=visibleDay(); sortRows(d); updateSummary(d); filter(); recomputeEmpties(); }
+    // Soft refresh: update the status summary + apply filters, but DO NOT re-sort —
+    // used on status changes so the row you just edited stays put.
+    function refreshSoft(){ var d=visibleDay(); updateSummary(d); filter(); recomputeEmpties(); }
+    rail.forEach(function(b){ b.addEventListener('click',function(){ show(b.getAttribute('data-date')); }); });
+    if(sel) sel.addEventListener('change',function(){ show(sel.value); });
+    if(q) q.addEventListener('input',filter);
+    if(stfilter) stfilter.addEventListener('change',filter);
+    if(sortsel) sortsel.addEventListener('change',refresh);
+    return { refresh: refresh, refreshSoft: refreshSoft };
   }
-  function filter(){
-    var t=(q.value||'').trim().toLowerCase(), sf=stfilter?stfilter.value:'';
-    var day=days.filter(function(d){return !d.classList.contains('hidden');})[0];
-    if(!day) return;
-    var shown=0;
-    [].slice.call(day.querySelectorAll('tbody tr')).forEach(function(r){
-      var st=r.getAttribute('data-status')||'';
-      var stOk = !sf || (sf==='__set'? st!=='' : sf==='__none'? st==='' : st===sf);
-      var m=(!t||r.getAttribute('data-s').indexOf(t)>-1)&&stOk;
-      r.hidden=!m; if(m)shown++;
-    });
-    [].slice.call(day.querySelectorAll('.tier')).forEach(function(ti){
-      ti.style.display=ti.querySelectorAll('tbody tr:not([hidden])').length?'':'none';
-    });
-    var empty=day.querySelector('.day-empty'); if(empty) empty.hidden=shown>0;
+  var dvScan=mountDateView(document.getElementById('view-date'), {sel:'dsel',q:'q',stfilter:'stfilter',sortsel:'sortsel'});
+  var dvRecent=mountDateView(document.getElementById('view-recent'), {sel:'rdsel',q:'rq',stfilter:'rstfilter',sortsel:'rsortsel'});
+  var activeTab='date';
+  // soft=true → don't re-sort (used on status changes so rows don't jump).
+  function refreshActive(soft){
+    if(activeTab==='jds') return;   // Applied JDs tab has no date rows to lay out
+    if(activeTab==='recent') soft ? dvRecent.refreshSoft() : dvRecent.refresh();
+    else if(activeTab==='company'){ if(typeof sortCo==='function'){ if(!soft) sortCo(); coFilter(); } }
+    else soft ? dvScan.refreshSoft() : dvScan.refresh();
   }
 
-  rail.forEach(function(b){ b.addEventListener('click',function(){ show(b.getAttribute('data-date')); }); });
-  if(sel) sel.addEventListener('change',function(){ show(sel.value); });
-  q.addEventListener('input',filter);
-  if(stfilter) stfilter.addEventListener('change',filter);
-  if(sortsel) sortsel.addEventListener('change',refresh);
-
+  // Export = download role-status.json to the browser's Downloads folder. A
+  // static file:// page can't pick the save location, so the file lands in
+  // Downloads and YOU move it to <repo>/data/role-status.json. We now also show
+  // an on-screen confirmation (and the count) because the download itself is
+  // silent — the #1 "it does nothing" confusion is that there's no feedback and
+  // the file quietly went to Downloads. If you set zero statuses, we say so
+  // instead of exporting an empty file.
   var exportBtn=document.getElementById('exportBtn');
   if(exportBtn) exportBtn.addEventListener('click',function(){
+    var n=Object.keys(store).filter(function(k){return store[k];}).length;
+    if(!n){ if(linkState) linkState.textContent='Nothing to export yet — set a status on at least one role first.'; return; }
     var blob=new Blob([JSON.stringify({version:1, updated:new Date().toISOString(), statuses:store}, null, 2)],{type:'application/json'});
     var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='role-status.json';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+    if(linkState) linkState.textContent='✓ Downloaded role-status.json ('+n+' status'+(n===1?'':'es')+') to your Downloads folder — now move it to <repo>/data/role-status.json.';
   });
   var importFile=document.getElementById('importFile');
   if(importFile) importFile.addEventListener('change',function(){
@@ -264,13 +730,324 @@ tr[hidden]{display:none;}
       try{ var j=JSON.parse(rd.result); var st=j.statuses||j;
         Object.keys(st).forEach(function(k){ if(st[k]) store[k]=st[k]; });
         saveStore(); selects.forEach(paint); refresh();
+        if(window.__updateBanner) window.__updateBanner();
+        if(window.__autoSave) window.__autoSave();   // also persist an imported set to the linked file
+
       }catch(e){ alert('Could not read that file as a status export.'); }
       importFile.value='';
     };
     rd.readAsText(f);
   });
 
-  refresh();
+  // ───────────────────────────────────────────────────────────────────────────
+  // AUTO-SAVE TO DISK — File System Access API  (the "Link file" button)
+  //
+  // WHAT THIS IS:
+  //   An optional way to bind this dashboard to your on-disk
+  //   data/role-status.json so that EVERY status change (including "Role Not
+  //   Found") is written to that file the instant you make it — no manual
+  //   "Export statuses" step.
+  //
+  // WHY IT EXISTS:
+  //   A static file:// page cannot silently write to your disk; the browser
+  //   requires a one-time user gesture (the file picker) to grant access.
+  //   Without this, marks live only in the browser's localStorage, and the
+  //   retry tooling (output/dashboard/retry-notfound.mjs and the post-scan
+  //   re-check) reads a FILE — so it would only ever see marks you manually
+  //   exported. "Link file" closes that gap: once linked, the on-disk file is
+  //   always current, which is what makes "mark a dead role → it gets
+  //   re-checked on the next scan" actually hands-off.
+  //
+  // HOW YOU USE IT (one time):
+  //   1. Click "Link file — auto-save".
+  //   2. In the picker, navigate to this repo's data/ folder and choose (or
+  //      create) role-status.json, then confirm.
+  //   3. The button flips to "Linked ✓" and every mark auto-saves from then on.
+  //   The link is remembered across page reloads (handle stored in IndexedDB);
+  //   Chrome re-verifies permission each session — silently if still granted,
+  //   otherwise it re-prompts on your next status change (itself a gesture).
+  //   Re-link if you move the repo to a new path.
+  //
+  // SCOPE / FALLBACK:
+  //   Chromium browsers only (Chrome/Edge/Brave). In Firefox/Safari the API is
+  //   absent, so the button stays hidden and you keep using Export — nothing
+  //   breaks. Marks are ALWAYS still in localStorage regardless, so a failed
+  //   disk write never loses data.
+  // ───────────────────────────────────────────────────────────────────────────
+  var linkBtn=document.getElementById('linkBtn');
+  var linkState=document.getElementById('linkState');
+  var fileHandle=null;                       // FileSystemFileHandle once linked (else null)
+  var fsaSupported=('showSaveFilePicker' in window);
+  var IDB_NAME='cops-dashboard', IDB_STORE='handles', IDB_KEY='roleStatusHandle';
+
+  // --- Minimal IndexedDB helpers: persist the file handle across reloads so you
+  //     only pick the file once. (localStorage can't hold a file handle; IDB can.)
+  function idbOpen(){ return new Promise(function(res,rej){
+    var r=indexedDB.open(IDB_NAME,1);
+    r.onupgradeneeded=function(){ r.result.createObjectStore(IDB_STORE); };
+    r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); };
+  }); }
+  function idbPut(val){ return idbOpen().then(function(db){ return new Promise(function(res,rej){
+    var tx=db.transaction(IDB_STORE,'readwrite'); tx.objectStore(IDB_STORE).put(val,IDB_KEY);
+    tx.oncomplete=function(){res();}; tx.onerror=function(){rej(tx.error);}; }); }); }
+  function idbGet(){ return idbOpen().then(function(db){ return new Promise(function(res,rej){
+    var tx=db.transaction(IDB_STORE,'readonly'); var g=tx.objectStore(IDB_STORE).get(IDB_KEY);
+    g.onsuccess=function(){res(g.result||null);}; g.onerror=function(){rej(g.error);}; }); }); }
+
+  // --- Permission gate: QUERY silently anytime, but only REQUEST (which may show
+  //     a prompt) from inside a user gesture, or the browser rejects it. ---
+  function hasRW(handle,doRequest){
+    if(!handle||!handle.queryPermission) return Promise.resolve(false);
+    var opts={mode:'readwrite'};
+    return handle.queryPermission(opts).then(function(p){
+      if(p==='granted') return true;
+      if(doRequest&&handle.requestPermission) return handle.requestPermission(opts).then(function(q){return q==='granted';});
+      return false;
+    });
+  }
+  // --- Write the whole status store to the linked file (same shape Export uses,
+  //     so the two are interchangeable and retry-notfound.mjs reads either). ---
+  function writeToFile(handle){
+    return handle.createWritable().then(function(w){
+      return w.write(JSON.stringify({version:1,updated:new Date().toISOString(),statuses:store},null,2)+'\n')
+        .then(function(){ return w.close(); });
+    });
+  }
+  function setLinkedUI(on){
+    if(linkBtn) linkBtn.textContent=on?'Linked ✓ — auto-saving':'Link file — auto-save';
+    if(linkState) linkState.textContent=on?'Auto-save ON → data/role-status.json is written on every change.':'';
+  }
+  // autoSave() runs after every status change; a silent no-op unless you've linked.
+  // Exposed on window so the change/import handlers above can call it without
+  // depending on definition order.
+  function autoSave(){
+    if(!fileHandle) return;
+    hasRW(fileHandle,true)
+      .then(function(ok){ if(ok) return writeToFile(fileHandle).then(function(){ setLinkedUI(true); }); })
+      .catch(function(){ /* transient disk/permission hiccup — marks remain safe in localStorage + Export */ });
+  }
+  window.__autoSave=autoSave;
+
+  if(!fsaSupported){
+    if(linkState) linkState.textContent='(Auto-save needs Chrome/Edge — use Export here.)';
+  } else {
+    linkBtn.hidden=false;
+    // On load: silently restore any previously linked file (never prompt here).
+    idbGet().then(function(h){
+      if(!h) return false;
+      fileHandle=h;                    // keep the handle even if permission needs a re-grant
+      return hasRW(h,false);           // query only; a re-grant (if needed) happens on next change
+    }).then(function(granted){ setLinkedUI(!!granted); }).catch(function(){});
+    // Click: pick/create the file, remember it, and write the current store now.
+    linkBtn.addEventListener('click',function(){
+      window.showSaveFilePicker({suggestedName:'role-status.json',
+        types:[{description:'Role status JSON',accept:{'application/json':['.json']}}]})
+      .then(function(h){ fileHandle=h; return idbPut(h).then(function(){ return writeToFile(h); }); })
+      .then(function(){ setLinkedUI(true); })
+      .catch(function(){ /* picker cancelled — nothing to do */ });
+    });
+  }
+
+  // ── View tabs (By scan date | By company | Recent scanc) ──
+  var vtabs=[].slice.call(document.querySelectorAll('.vtab'));
+  var viewDate=document.getElementById('view-date');
+  var viewCo=document.getElementById('view-company');
+  var viewRecent=document.getElementById('view-recent');
+  var viewJds=document.getElementById('view-jds');
+  vtabs.forEach(function(t){ t.addEventListener('click',function(){
+    var v=t.getAttribute('data-view');
+    vtabs.forEach(function(x){ x.classList.toggle('active', x===t); });
+    if(viewDate) viewDate.classList.toggle('hidden', v!=='date');
+    if(viewCo) viewCo.classList.toggle('hidden', v!=='company');
+    if(viewRecent) viewRecent.classList.toggle('hidden', v!=='recent');
+    if(viewJds) viewJds.classList.toggle('hidden', v!=='jds');
+    activeTab=v;
+    if(v==='company'){ sortCo(); coFilter(); }
+    else if(v==='jds'){ /* static list, already rendered */ }
+    else refreshActive();   // 'date' → dvScan, 'recent' → dvRecent (re-lays out now visible)
+    recomputeEmpties();     // recompute now that this tab's rows are laid out
+  }); });
+
+  // ── By-company view: picker (search + list), role filter, sort ──
+  var coItems=[].slice.call(document.querySelectorAll('.co-item'));
+  var coSecs=[].slice.call(document.querySelectorAll('.co'));
+  var coq=document.getElementById('coq');
+  var coRoleQ=document.getElementById('coRoleQ');
+  var cosort=document.getElementById('cosort');
+  function visibleCo(){ return coSecs.filter(function(s){return !s.classList.contains('hidden');})[0]; }
+  function showCo(co){
+    coSecs.forEach(function(s){ s.classList.toggle('hidden', s.getAttribute('data-co')!==co); });
+    coItems.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-co')===co); });
+    sortCo(); coFilter();
+  }
+  coItems.forEach(function(b){ b.addEventListener('click',function(){ showCo(b.getAttribute('data-co')); }); });
+  if(coq) coq.addEventListener('input',function(){          // filter the COMPANY list
+    var t=(coq.value||'').trim().toLowerCase();
+    coItems.forEach(function(b){                            // hide the whole row (checkbox + button)
+      var row=b.closest('.co-row')||b;
+      row.style.display=b.getAttribute('data-co').toLowerCase().indexOf(t)>-1?'':'none';
+    });
+  });
+  function coFilter(){                                       // filter ROLES within the shown company
+    var sec=visibleCo(); if(!sec) return;
+    var t=(coRoleQ&&coRoleQ.value||'').trim().toLowerCase(), shown=0;
+    [].slice.call(sec.querySelectorAll('tbody tr')).forEach(function(r){
+      var m=!t||r.getAttribute('data-s').indexOf(t)>-1; r.hidden=!m; if(m)shown++;
+    });
+    var e=sec.querySelector('.co-empty'); if(e) e.hidden=shown>0;
+    recomputeEmpties();
+  }
+  if(coRoleQ) coRoleQ.addEventListener('input',coFilter);
+  function sortCo(){
+    var sec=visibleCo(); if(!sec) return;
+    var mode=cosort?cosort.value:'found';
+    var tb=sec.querySelector('tbody'); if(!tb) return;
+    var rows=[].slice.call(tb.querySelectorAll('tr'));
+    rows.sort(function(a,b){
+      if(mode==='role'){
+        var ta=(a.querySelector('.c-role a')||{}).textContent||'';
+        var tbt=(b.querySelector('.c-role a')||{}).textContent||'';
+        return ta.localeCompare(tbt);
+      }
+      var key=mode==='listed'?'data-listed':'data-found';
+      var av=a.getAttribute(key)||'', bv=b.getAttribute(key)||'';
+      if(av===bv) return 0;
+      if(!av) return 1; if(!bv) return -1;     // undated sink to the bottom
+      return bv.localeCompare(av);              // newest first
+    });
+    rows.forEach(function(r){ tb.appendChild(r); });
+  }
+  if(cosort) cosort.addEventListener('change',sortCo);
+  sortCo();
+
+  // ── Scan bar: multi-select companies → copy a "/scanc …" command ──
+  // The static page can't run node, so we build the /scanc workflow trigger and
+  // copy it; pasting it into Claude Code runs scanc (zero-token + persist),
+  // WebSearch for handoff companies, and rebuilds the dashboard.
+  var coChks=[].slice.call(document.querySelectorAll('.co-chk'));
+  var selCount=document.getElementById('selCount');
+  var scanDays=document.getElementById('scanDays');
+  var scanAdd=document.getElementById('scanAdd');
+  var copyScan=document.getElementById('copyScan');
+  var scanCmd=document.getElementById('scanCmd');
+  var scanNote=document.getElementById('scanNote');
+  var reloadDash=document.getElementById('reloadDash');
+  var selAll=document.getElementById('selAll');
+  var selNone=document.getElementById('selNone');
+
+  function extraCompanies(){
+    return ((scanAdd&&scanAdd.value)||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  }
+  function selectedCompanies(){
+    var picked=coChks.filter(function(c){return c.checked;}).map(function(c){return c.getAttribute('data-co');});
+    var seen={}, out=[];                                     // de-dupe case-insensitively, keep order
+    picked.concat(extraCompanies()).forEach(function(n){ var k=n.toLowerCase(); if(!seen[k]){seen[k]=1;out.push(n);} });
+    return out;
+  }
+  function buildCmd(){
+    var cos=selectedCompanies(); if(!cos.length) return '';
+    var days=scanDays?scanDays.value:'7';
+    return '/scanc '+cos.join(', ')+(days&&days!=='7'?(' --days '+days):'');  // scanc default is 7 → omit
+  }
+  function updateSel(){
+    var total=selectedCompanies().length;
+    if(selCount) selCount.textContent=total+' selected';
+    coChks.forEach(function(c){ var row=c.closest('.co-row'); if(row) row.classList.toggle('chk', c.checked); });
+  }
+  coChks.forEach(function(c){ c.addEventListener('change',updateSel); });
+  if(scanAdd) scanAdd.addEventListener('input',updateSel);
+  if(selAll) selAll.addEventListener('click',function(){
+    coChks.forEach(function(c){ var row=c.closest('.co-row'); if(!row||row.style.display!=='none') c.checked=true; }); updateSel();
+  });
+  if(selNone) selNone.addEventListener('click',function(){ coChks.forEach(function(c){ c.checked=false; }); updateSel(); });
+
+  // Clipboard with a file:// fallback: async API (secure contexts) → textarea+
+  // execCommand (works on file://) → always reveal the pre-selected input as a
+  // last-resort manual copy, so the user is never left without the command text.
+  function fallbackCopy(txt){
+    try{
+      var ta=document.createElement('textarea'); ta.value=txt;
+      ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta);
+      ta.focus(); ta.select(); var ok=document.execCommand('copy'); document.body.removeChild(ta); return ok;
+    }catch(e){ return false; }
+  }
+  function copyText(txt){
+    return new Promise(function(res){
+      if(navigator.clipboard&&navigator.clipboard.writeText)
+        navigator.clipboard.writeText(txt).then(function(){res(true);},function(){res(fallbackCopy(txt));});
+      else res(fallbackCopy(txt));
+    });
+  }
+  if(copyScan) copyScan.addEventListener('click',function(){
+    var cmd=buildCmd();
+    if(!cmd){ if(scanNote) scanNote.textContent='Tick at least one company (or type one in “+ add other companies”) first.'; return; }
+    if(scanCmd){ scanCmd.hidden=false; scanCmd.value=cmd; scanCmd.focus(); scanCmd.select(); }
+    copyText(cmd).then(function(ok){
+      if(scanNote) scanNote.textContent=(ok?'✓ Copied — ':'Copy the box above — ')+'paste into Claude Code, then Reload dashboard.';
+    });
+  });
+  if(reloadDash) reloadDash.addEventListener('click',function(){ location.reload(); });
+  updateSel();
+
+  // ── Applied JDs tab: list → reader, plus company search ──
+  // Bodies are embedded in window.__JDS (offline-safe). Rendered via textContent so
+  // JD text is never interpreted as HTML — no escaping games, no injection.
+  var jdData=window.__JDS||[];
+  var jdItems=[].slice.call(document.querySelectorAll('.jd-item'));
+  var jdReader=document.getElementById('jdReader');
+  var jdq=document.getElementById('jdq');
+  function renderJD(j){
+    if(!jdReader) return;
+    jdReader.innerHTML='';
+    var head=document.createElement('div'); head.className='jd-head';
+    var h=document.createElement('h2'); h.textContent=j.role||'Role'; head.appendChild(h);
+    var sub=document.createElement('p'); sub.className='jd-sub';
+    sub.textContent=[j.company, j.applied?('applied '+j.applied):'', j.status?('status: '+j.status):'', j.source||''].filter(Boolean).join(' · ');
+    head.appendChild(sub);
+    if(j.url){ var a=document.createElement('a'); a.className='jd-link'; a.href=j.url; a.target='_blank'; a.rel='noopener'; a.textContent='Open posting ↗'; head.appendChild(a); }
+    if(j.wayback){ var w=document.createElement('a'); w.className='jd-link'; w.href=j.wayback; w.target='_blank'; w.rel='noopener'; w.textContent='Wayback snapshot ↗'; head.appendChild(w); }
+    jdReader.appendChild(head);
+    var bodyEl=document.createElement('div'); bodyEl.className='jd-body'; bodyEl.textContent=j.body||'(no body captured)'; jdReader.appendChild(bodyEl);
+  }
+  function showJD(idx){
+    jdItems.forEach(function(b){ b.classList.toggle('active', (+b.getAttribute('data-idx'))===idx); });
+    var j=jdData[idx]; if(j) renderJD(j);
+  }
+  jdItems.forEach(function(b){ b.addEventListener('click',function(){ showJD(+b.getAttribute('data-idx')); }); });
+  if(jdq) jdq.addEventListener('input',function(){
+    var t=(jdq.value||'').trim().toLowerCase();
+    jdItems.forEach(function(b){ b.style.display=(!t||b.getAttribute('data-s').indexOf(t)>-1)?'':'none'; });
+  });
+  if(jdItems.length) showJD(0);
+
+  // ── Global pending-JDs banner (visible on every tab) ──
+  // pending = roles you marked "applied" (status store) that have NO archived JD
+  // (by normalized URL). Nags until you run snapshot-jd; auto-hides at 0. Recomputes
+  // on every status change so marking one Applied bumps the count immediately.
+  var jdBanner=document.getElementById('jdBanner');
+  var jdBannerMsg=document.getElementById('jdBannerMsg');
+  var jdBannerCopy=document.getElementById('jdBannerCopy');
+  var jdBannerCmd=document.getElementById('jdBannerCmd');
+  var jdUrlSet={}; jdData.forEach(function(j){ if(j.url) jdUrlSet[normUrl(j.url)]=1; });
+  function updateBanner(){
+    if(!jdBanner) return;
+    var n=0;
+    Object.keys(store).forEach(function(k){ if(store[k]==='applied' && !jdUrlSet[k]) n++; });
+    if(n>0){ jdBannerMsg.innerHTML='⚑ '+n+' applied role'+(n===1?'':'s')+' with no JD yet — run ';
+      var code=document.createElement('code'); code.textContent='snapshot-jd'; jdBannerMsg.appendChild(code);
+      jdBanner.hidden=false; } else jdBanner.hidden=true;
+  }
+  if(jdBannerCopy) jdBannerCopy.addEventListener('click',function(){
+    var cmd='snapshot-jd';
+    if(jdBannerCmd){ jdBannerCmd.hidden=false; jdBannerCmd.value=cmd; jdBannerCmd.focus(); jdBannerCmd.select(); }
+    copyText(cmd);
+  });
+  window.__updateBanner=updateBanner;
+  updateBanner();
+
+  // Lay out both date-style views once (recent re-lays out when its tab opens).
+  dvScan.refresh();
+  dvRecent.refresh();
 })();
 </script>
 </body>
